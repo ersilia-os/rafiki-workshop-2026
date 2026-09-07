@@ -105,3 +105,39 @@ def plot_model_agreement(df, x_column, y_column, x_label, y_label):
         .configure_title(anchor="middle")
         .interactive()
     )
+
+
+def plot_pareto(df, x_column, y_column, shortlist_column, parent_x, parent_y, x_threshold):
+    """Two objectives at once: keep the potency, gain the permeability.
+
+    The parent sits at the crossing of the two dashed lines, so the shortlist is
+    everything up and to the right of it.
+    """
+    points = (
+        alt.Chart(df)
+        .mark_circle(size=26, opacity=0.55)
+        .encode(
+            x=alt.X(x_column, scale=alt.Scale(zero=False), title="Predicted S. aureus activity"),
+            y=alt.Y(y_column, scale=alt.Scale(zero=False), title="Predicted efflux evasion"),
+            color=alt.Color(
+                "{0}:N".format(shortlist_column),
+                scale=alt.Scale(domain=[False, True], range=["#C9C6D0", ACTIVE]),
+                legend=alt.Legend(
+                    title=None, orient="bottom",
+                    labelExpr="if(datum.label == 'true', 'Keeps potency, gains permeability', 'Everything else')",
+                ),
+            ),
+            tooltip=["generator", x_column, y_column, "rdkit_mw"],
+        )
+    )
+    rules = alt.Chart(pd.DataFrame({"x": [x_threshold], "y": [parent_y]}))
+    vline = rules.mark_rule(strokeDash=[4, 4], color=INACTIVE).encode(x="x:Q")
+    hline = rules.mark_rule(strokeDash=[4, 4], color=INACTIVE).encode(y="y:Q")
+    parent = (
+        alt.Chart(pd.DataFrame({"x": [parent_x], "y": [parent_y]}))
+        .mark_point(size=260, shape="diamond", filled=True, color=ACTIVE, stroke="white", strokeWidth=1.5)
+        .encode(x="x:Q", y="y:Q")
+    )
+    return (points + vline + hline + parent).properties(
+        title="1062 analogues against the natural product", height=430
+    )

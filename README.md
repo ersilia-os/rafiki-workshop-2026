@@ -2,7 +2,8 @@
 
 Streamlit app for the Rafiki 2026 workshop, developed by the [Ersilia Open Source Initiative](https://ersilia.io).
 Participants inspect a *Staphylococcus aureus* screen, choose an activity cut-off, train a classifier
-on two molecular representations, then screen a new compound library and rank what comes out.
+on two molecular representations, screen a new compound library, and finish by expanding the one
+natural product that sits in every group's library.
 
 The activity data comes from the EU-OpenScreen ECBD assay "MSSA ATCC 29213 Anti-Bacterial Assay"
 (*S. aureus* ATCC 29213, 50 uM single point), via
@@ -20,6 +21,10 @@ bash   scripts/02_run_featurisers.sh           # ersilia: eos4wt0, eos9o72, eos1
 python scripts/03_pack_descriptors.py
 python scripts/04_make_group_inputs.py         # needs data/library_*.csv
 ```
+
+`data/analogues_master.csv` (1,062 platensimycin analogues from five generative models, already
+scored) comes from a separate analysis and is not rebuilt by these scripts. Column meanings are
+documented in that analysis, not here; `app/info.py` names the four columns the app actually uses.
 
 To see the app working without waiting for the featurisers,
 `python scripts/99_placeholder_descriptors.py` writes random stand-ins and the app shows a warning

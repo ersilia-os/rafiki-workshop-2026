@@ -14,16 +14,19 @@ from info import (
     CUTOFF_MIN, CUTOFF_MAX, CUTOFF_DEFAULT, CUTOFF_STEP,
     DESCRIPTORS, PROJECTION_FILE, PROJECTION_X, PROJECTION_Y,
     LIBRARY_FILES, LIBRARY_SMILES_COLUMN, ACTIVITY_MODELS, COLUMN_LABELS, N_TOP_HITS,
-    EXAMPLE_INPUT,
-    q1, q2, q3, q4, q5,
+    EXAMPLE_INPUT, ANALOGUES_FILE, PARENT_NAME, PARENT_SMILES, PARENT_SAUREUS,
+    PARENT_EFFLUX, SAUREUS_THRESHOLD, ANALOGUE_X, ANALOGUE_Y, ANALOGUE_SHORTLIST,
+    q1, q2, q3, q4, q5, q6,
 )
 from utils import (
     data_path, descriptor_preview, load_training_data, binarize, load_descriptors,
-    load_projection, load_library, read_uploaded_smiles, match_library,
+    load_projection, load_library, load_analogues, read_uploaded_smiles, match_library,
     reduce_dimensions, train_classifier, interpolate_roc_curves, draw_molecules_grid,
+    draw_molecule,
 )
 from plots import (
     plot_readout_histogram, plot_chemical_space, plot_roc, plot_model_agreement,
+    plot_pareto,
 )
 
 st.set_page_config(layout="wide", page_title=TITLE, page_icon=PAGE_ICON, initial_sidebar_state="collapsed")
@@ -53,6 +56,11 @@ def _projection(filename, version):
     return load_projection(filename)
 
 
+@st.cache_data(show_spinner=False)
+def _analogues(filename, version):
+    return load_analogues(filename)
+
+
 def cached_training_data(filename):
     return _training_data(filename, data_version(filename))
 
@@ -67,6 +75,10 @@ def cached_library(filename):
 
 def cached_projection(filename):
     return _projection(filename, data_version(filename))
+
+
+def cached_analogues(filename):
+    return _analogues(filename, data_version(filename))
 
 
 def unlocked(key, label):
@@ -259,3 +271,35 @@ if st.session_state.get("cutoff") is not None:
             mime="text/csv",
         )
         questions(st, q5)
+
+        # Step 6 ---------------------------------------------------------------
+        if unlocked("step6", "🌱 Expand the natural product in your hits"):
+            st.divider()
+            st.header("Step 6: Hit expansion")
+
+            analogues = cached_analogues(ANALOGUES_FILE)
+            shortlist = int(analogues[ANALOGUE_SHORTLIST].sum())
+
+            cols = st.columns([0.3, 0.7])
+            cols[0].image(draw_molecule(PARENT_SMILES, size=(280, 240)), caption=PARENT_NAME)
+            cols[0].metric("S. aureus activity", PARENT_SAUREUS)
+            cols[0].metric("Efflux evasion", PARENT_EFFLUX)
+            cols[0].caption(
+                "{0} is in every group's library. It is potent against Gram-positives and "
+                "fails against Gram-negatives - not because it misses its target, but because "
+                "it never gets inside. Here are {1} analogues from five generative models.".format(
+                    PARENT_NAME, len(analogues)
+                )
+            )
+            cols[1].altair_chart(
+                plot_pareto(analogues, ANALOGUE_X, ANALOGUE_Y, ANALOGUE_SHORTLIST,
+                            PARENT_SAUREUS, PARENT_EFFLUX, SAUREUS_THRESHOLD),
+                width="stretch",
+            )
+
+            cols = st.columns(4)
+            cols[0].metric("Analogues", len(analogues))
+            cols[1].metric("Keep potency", int(analogues["clears_saureus_thr"].sum()))
+            cols[2].metric("Gain permeability", int(analogues["better_efflux_than_parent"].sum()))
+            cols[3].metric("Both", shortlist)
+            questions(st, q6)

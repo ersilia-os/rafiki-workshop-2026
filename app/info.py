@@ -62,9 +62,11 @@ LIBRARY_SMILES_COLUMN = "input"
 EXAMPLE_INPUT = os.path.join("group_inputs", "group_1.csv")
 
 # The two S. aureus activity predictions shown first.
+# ChEMBL first: it is the ranking column. eos3f8h saturates (it scores almost
+# everything above 0.99), so it is shown for contrast but never used to rank.
 ACTIVITY_MODELS = {
-    "EU-OpenScreen model": "eos3f8h_saureus",
     "ChEMBL model": "eos8lcw_consensus_score",
+    "EU-OpenScreen model": "eos3f8h_saureus",
 }
 
 # The rest of the array, shown in the final downloadable table.
@@ -81,7 +83,22 @@ COLUMN_LABELS = {
     "eos4djh_qed": "QED",
 }
 
-N_TOP_HITS = 8
+N_TOP_HITS = 16
+
+# --- Hit expansion -----------------------------------------------------------
+# One natural product, platensimycin, sits in all six libraries and ranks in the
+# top 1.5% on the ChEMBL model, so every group finds it. These are 1062 analogues
+# from five generative models, already scored.
+ANALOGUES_FILE = "analogues_master.csv"
+PARENT_NAME = "Platensimycin"
+PARENT_SMILES = "CC12CC34C=CC(=O)C(C)(CCC(=O)Nc5c(O)ccc(C(=O)O)c5O)C3C(CC1C4)O2"
+
+# Reference values for the stereo-defined natural product.
+PARENT_SAUREUS, PARENT_EFFLUX = 0.830, 0.492
+SAUREUS_THRESHOLD = 0.791
+
+ANALOGUE_X, ANALOGUE_Y = "ch_saureus", "efflux_evader_proba"
+ANALOGUE_SHORTLIST = "on_pareto_shortlist"
 
 # --- Discussion questions ----------------------------------------------------
 q1 = [
@@ -121,4 +138,12 @@ q5 = [
     "- Activity is not enough. What else in this table would stop you?",
     "- A compound is predicted active but flags PAINS. What now?",
     "- You can synthesise 50 compounds. Which 50, and why?",
+]
+
+q6 = [
+    "- The red diamond is platensimycin. Which quadrant do you want to be in?",
+    "- 135 analogues gain permeability without losing potency. Would you make them?",
+    "- Among these, potency and efflux evasion pull against each other. Why?",
+    "- Not one of the 1062 clears the E. coli threshold. What is that telling you?",
+    "- What would you need to measure to do better than this?",
 ]

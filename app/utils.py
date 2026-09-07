@@ -52,6 +52,10 @@ def load_library(filename):
     return pd.read_csv(data_path(filename))
 
 
+def load_analogues(filename):
+    return pd.read_csv(data_path(filename))
+
+
 def read_uploaded_smiles(uploaded_file):
     """SMILES out of whatever the group drops in, with or without a header."""
     df = pd.read_csv(uploaded_file)
@@ -111,6 +115,10 @@ def interpolate_roc_curves(cv_data, n_points=100):
     df["Mean TPR"] = mean_tpr
     df["FPR"] = mean_fpr
     return df
+
+
+def draw_molecule(smiles, size=(200, 200)):
+    return Draw.MolToImage(Chem.MolFromSmiles(smiles), size=size)
 
 
 def draw_molecules_grid(smiles_list, legends, per_row=4, size=(260, 220)):
