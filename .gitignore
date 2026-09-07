@@ -217,7 +217,7 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# Workshop data: screening results, descriptors and handouts.
-# Not distributed with the code for now - regenerate with scripts/01-04.
-data/*
-!data/.gitkeep
+# Raw Ersilia output. 03_pack_descriptors.py compresses it into data/;
+# the ~190 MB of intermediates are not worth versioning.
+data/raw/
+data/.placeholder

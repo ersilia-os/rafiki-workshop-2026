@@ -33,7 +33,7 @@ def binarize(df, cutoff, higher_is_active):
 
 def load_descriptors(filename):
     """Descriptor matrix, rows aligned with the training set."""
-    return np.load(data_path(filename)).astype(np.float32, copy=False)
+    return np.load(data_path(filename))["features"].astype(np.float32, copy=False)
 
 
 def load_projection(filename):

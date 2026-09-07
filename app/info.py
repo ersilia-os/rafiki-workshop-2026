@@ -35,12 +35,12 @@ HIGHER_IS_ACTIVE = True
 CUTOFF_MIN, CUTOFF_MAX, CUTOFF_DEFAULT, CUTOFF_STEP = 0.0, 100.0, 50.0, 0.5
 
 # --- Precomputed featurisations ---------------------------------------------
-# One float32 .npy per descriptor, in data/, rows in the same order as
+# One compressed .npz per descriptor, in data/, rows in the same order as
 # TRAINING_FILE. Produced offline: scripts/02_run_featurisers.sh then
 # scripts/03_pack_descriptors.py.
 DESCRIPTORS = {
-    "Morgan fingerprints": "saureus_eos4wt0.npy",   # eos4wt0, 2048 binary bits
-    "CheMeleon embeddings": "saureus_eos9o72.npy",  # eos9o72, 2048-d foundation model
+    "Morgan fingerprints": "saureus_eos4wt0.npz",   # eos4wt0, 2048 binary bits
+    "CheMeleon embeddings": "saureus_eos9o72.npz",  # eos9o72, 2048-d foundation model
 }
 
 # 2D projection onto Ersilia's reference chemical space (eos1klk). Small enough

@@ -28,10 +28,45 @@ from plots import (
 
 st.set_page_config(layout="wide", page_title=TITLE, page_icon=PAGE_ICON, initial_sidebar_state="collapsed")
 
-cached_training_data = st.cache_data(show_spinner=False)(load_training_data)
-cached_descriptors = st.cache_data(show_spinner=False)(load_descriptors)
-cached_library = st.cache_data(show_spinner=False)(load_library)
-cached_projection = st.cache_data(show_spinner=False)(load_projection)
+def data_version(filename):
+    """Part of every cache key, so a regenerated file is never served stale."""
+    return os.path.getmtime(data_path(filename))
+
+
+@st.cache_data(show_spinner=False)
+def _training_data(filename, version):
+    return load_training_data(filename)
+
+
+@st.cache_data(show_spinner=False)
+def _descriptors(filename, version):
+    return load_descriptors(filename)
+
+
+@st.cache_data(show_spinner=False)
+def _library(filename, version):
+    return load_library(filename)
+
+
+@st.cache_data(show_spinner=False)
+def _projection(filename, version):
+    return load_projection(filename)
+
+
+def cached_training_data(filename):
+    return _training_data(filename, data_version(filename))
+
+
+def cached_descriptors(filename):
+    return _descriptors(filename, data_version(filename))
+
+
+def cached_library(filename):
+    return _library(filename, data_version(filename))
+
+
+def cached_projection(filename):
+    return _projection(filename, data_version(filename))
 
 
 def unlocked(key, label):

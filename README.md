@@ -10,11 +10,13 @@ The activity data comes from the EU-OpenScreen ECBD assay "MSSA ATCC 29213 Anti-
 
 ## Data
 
-`data/` is empty in this repository. Rebuild it from the numbered scripts, in order:
+`data/` ships with the repository (~23 MB). Descriptor matrices are compressed `.npz`:
+binary fingerprints as `uint8`, embeddings as `float16`. To rebuild from scratch:
 
 ```bash
 python scripts/01_prepare_saureus_dataset.py   # needs the eu-openscreen repo alongside this one
 bash   scripts/02_run_featurisers.sh           # ersilia: eos4wt0, eos9o72, eos1klk (~20 min)
+                                               # raw output lands in data/raw/, not versioned
 python scripts/03_pack_descriptors.py
 python scripts/04_make_group_inputs.py         # needs data/library_*.csv
 ```

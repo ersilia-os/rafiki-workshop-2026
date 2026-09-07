@@ -33,14 +33,14 @@ written = []
 morgan = (rng.random((n, N_BITS)) < 0.03).astype(np.uint8)
 signal = rng.choice(N_BITS, 40, replace=False)
 morgan[np.ix_(active, signal)] = (rng.random((active.sum(), 40)) < 0.55).astype(np.uint8)
-np.save(os.path.join(data_dir, "saureus_eos4wt0.npy"), morgan)
-written.append("saureus_eos4wt0.npy")
+np.savez_compressed(os.path.join(data_dir, "saureus_eos4wt0.npz"), features=morgan)
+written.append("saureus_eos4wt0.npz")
 
 # eos9o72: dense float embedding, actives shifted along a few directions
-chemeleon = rng.normal(size=(n, N_BITS)).astype(np.float32)
-chemeleon[active] += rng.normal(0.35, 0.1, N_BITS).astype(np.float32)
-np.save(os.path.join(data_dir, "saureus_eos9o72.npy"), chemeleon)
-written.append("saureus_eos9o72.npy")
+chemeleon = rng.normal(size=(n, N_BITS)).astype(np.float16)
+chemeleon[active] += rng.normal(0.35, 0.1, N_BITS).astype(np.float16)
+np.savez_compressed(os.path.join(data_dir, "saureus_eos9o72.npz"), features=chemeleon)
+written.append("saureus_eos9o72.npz")
 
 # eos1klk: 8 projection columns, a few blobs so the map is not a gaussian cloud
 centres = rng.normal(0, 6, size=(8, 2))
