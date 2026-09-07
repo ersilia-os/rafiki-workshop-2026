@@ -1,0 +1,9 @@
+spec:
+  name: rafiki-workshop-2026
+
+  services:
+  - name: rafiki-workshop-2026
+    dockerfile_path: Dockerfile
+    git:
+      branch: main
+      repo_clone_url: https://github.com/ersilia-os/rafiki-workshop-2026.git

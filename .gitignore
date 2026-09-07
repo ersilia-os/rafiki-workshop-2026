@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Raw Ersilia output. 03_pack_descriptors.py compresses it into data/;
+# the ~190 MB of intermediates are not worth versioning.
+data/raw/
+data/.placeholder

@@ -1,0 +1,9 @@
+name: rafiki-workshop-2026
+
+services:
+- name: rafiki-workshop-2026
+  dockerfile_path: Dockerfile
+  github:
+    repo: ersilia-os/rafiki-workshop-2026
+    branch: main
+    deploy_on_push: true
