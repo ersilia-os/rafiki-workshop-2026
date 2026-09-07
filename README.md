@@ -1,1 +1,42 @@
-# rafiki-workshop-2026
+# Rafiki Workshop 2026
+
+Streamlit app for the Rafiki 2026 workshop, developed by the [Ersilia Open Source Initiative](https://ersilia.io).
+Participants inspect a *Staphylococcus aureus* screen, choose an activity cut-off, train a classifier
+on two molecular representations, then screen a new compound library and rank what comes out.
+
+The activity data comes from the EU-OpenScreen ECBD assay "MSSA ATCC 29213 Anti-Bacterial Assay"
+(*S. aureus* ATCC 29213, 50 uM single point), via
+[eu-openscreen-antimicrobial-tasks](https://github.com/ersilia-os/eu-openscreen-antimicrobial-tasks).
+
+## Data
+
+`data/` is empty in this repository. Rebuild it from the numbered scripts, in order:
+
+```bash
+python scripts/01_prepare_saureus_dataset.py   # needs the eu-openscreen repo alongside this one
+bash   scripts/02_run_featurisers.sh           # ersilia: eos4wt0, eos9o72, eos1klk (~20 min)
+python scripts/03_pack_descriptors.py
+python scripts/04_make_group_inputs.py         # needs data/library_*.csv
+```
+
+To see the app working without waiting for the featurisers,
+`python scripts/99_placeholder_descriptors.py` writes random stand-ins and the app shows a warning
+banner while they are in place.
+
+## Run
+
+```bash
+pip install -r requirements.txt
+streamlit run app/app.py
+```
+
+`app/info.py` is the only file to edit to change the dataset, the descriptors, the models or the
+workshop text.
+
+## License
+
+Code is released under a [GPLv3](LICENSE) license. Workshop materials are released under a CC-BY-4 license.
+
+## Contact
+
+[hello@ersilia.io](mailto:hello@ersilia.io)
