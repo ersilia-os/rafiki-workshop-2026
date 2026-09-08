@@ -1,8 +1,8 @@
 """One function per step. Each is registered as a page in app.py."""
 
 import os
+import random
 import time
-import zlib
 
 import numpy as np
 import streamlit as st
@@ -25,7 +25,8 @@ from info import (
     PROJECTION_FILE,
     RAFIKI_IDS_FILE, RAFIKI_ID_LABEL,
     PROJECTION_X, PROJECTION_Y, READOUT_COLUMN, READOUT_LABEL, SAUREUS_THRESHOLD,
-    MODELS, MODEL_HUB_URL, RESULTS_HINT, SAMPLING_CAVEAT, SMILES_COLUMN, STEP_MODELS, STEP_TEXT,
+    MODELS, MODEL_HUB_URL, NATURAL_PRODUCTS_NOTE, N_PROFILE_SHOWN,
+    PROFILING_INTRO, SAMPLING_CAVEAT, SMILES_COLUMN, STEP_MODELS, STEP_TEXT,
     TRAINING_FILE, ECBD_ASSAY_URL,
     TRAINING_SECONDS, TRAINING_STEPS,
     q1, q2, q3, q4, q5, q6, q7,
@@ -73,6 +74,53 @@ def questions(items, key):
     with st.container(border=True, key="talk-" + key):
         st.caption("Talk it through")
         st.markdown("\n".join(items))
+
+
+def _filter_and_sort(table, columns, identifier):
+    """Sorting and per-column filters, folded away above the table.
+
+    Sorting lives here rather than in the dataframe's own headers because that
+    sorting is client side: Streamlit never learns about it, so the structures
+    drawn underneath would keep showing the first rows in the frame's order
+    while the table showed something else.
+
+    Laid out in three blocks - order, ranges, flags - because interleaving
+    sliders and toggles by column made a jumble.
+    """
+    # A flag is a column whose values are only 0 and 1. Everything else takes a
+    # range. Testing the other way round - a strict superset of {0, 1} - looks
+    # equivalent and is not: a score running 0.245 to 0.923 contains neither.
+    flags = [c for c in columns if set(table[c].dropna().unique()) <= {0, 1}]
+    numeric = [c for c in columns if c not in flags]
+    shown = table
+
+    with st.expander("Filter and sort the table", icon=":material/filter_list:"):
+        order = st.columns(4)
+        by = order[0].selectbox("Sort by", [identifier] + numeric + flags, key="sort_by")
+        descending = order[1].segmented_control(
+            "Order", ["Ascending", "Descending"], default="Ascending", key="sort_dir",
+        ) == "Descending"
+
+        st.caption("Ranges")
+        grid = st.columns(4)
+        for i, name in enumerate(numeric):
+            low, high = float(table[name].min()), float(table[name].max())
+            if low == high:
+                continue
+            span = grid[i % 4].slider(name, low, high, (low, high), key="range_" + name)
+            shown = shown[shown[name].between(*span)]
+
+        st.caption("Flags")
+        row = st.columns(4)
+        for i, name in enumerate(flags):
+            choice = row[i % 4].segmented_control(
+                name, ["Any", "Yes", "No"], default="Any", key="flag_" + name)
+            if choice == "Yes":
+                shown = shown[shown[name] == 1]
+            elif choice == "No":
+                shown = shown[shown[name] == 0]
+
+    return shown.sort_values(by, ascending=not descending)
 
 
 def _run_predictions():
@@ -323,6 +371,10 @@ def screen_a_library():
             with st.container(key="lib-{0}".format(i + 1), width="content"):
                 if st.button("Library {0}".format(i + 1), key="pick-{0}".format(i + 1)):
                     st.session_state["library"] = filename
+                    # A fresh face every time a library is pressed, including the
+                    # same one twice. Seeded rather than re-drawn on each rerun,
+                    # so pressing anything else on the page leaves it alone.
+                    st.session_state["sample_seed"] = random.randrange(2 ** 32)
                     st.rerun()
 
     if not st.session_state.get("library"):
@@ -333,13 +385,11 @@ def screen_a_library():
         st.session_state["library"].replace(".csv", "").replace("_", " ").title(), len(library)))
 
     # A look at the library before any score exists, captioned by identifier
-    # rather than by prediction: there is nothing to rank on yet. Seeded from the
-    # file name, so the same library always shows the same faces.
+    # rather than by prediction: there is nothing to rank on yet.
     ids = cached_rafiki_ids(RAFIKI_IDS_FILE).rename(
         columns={"rafiki_id": RAFIKI_ID_LABEL, "smiles": LIBRARY_SMILES_COLUMN})
     sample = library.merge(ids, on=LIBRARY_SMILES_COLUMN, how="left").sample(
-        N_SCREEN_PREVIEW,
-        random_state=zlib.crc32(st.session_state["library"].encode()) % (2 ** 32),
+        N_SCREEN_PREVIEW, random_state=st.session_state.get("sample_seed"),
     )
     st.caption("{0} of them, picked at random.".format(N_SCREEN_PREVIEW))
     draw_molecules_grid(
@@ -357,25 +407,22 @@ def screen_a_library():
         models_used("screen_a_library")
         return
 
-    ranked = library.sort_values(ACTIVITY_MODEL_COLUMN, ascending=False)
-    top = ranked.head(N_TOP_HITS)
-    bottom = ranked.tail(N_TOP_HITS).iloc[::-1]          # worst first
-
+    st.subheader("Screening results")
     st.caption("{0} across the library.".format(ACTIVITY_MODEL_LABEL))
     st.altair_chart(
         plot_score_distribution(library[ACTIVITY_MODEL_COLUMN], "Activity score"),
         width="stretch",
     )
 
-    panels = st.tabs(["Top {0}".format(N_TOP_HITS), "Bottom {0}".format(N_TOP_HITS)])
-    for panel, subset in zip(panels, (top, bottom)):
-        with panel:
-            st.caption("Captions are the predicted activity.")
-            draw_molecules_grid(
-                list(subset[LIBRARY_SMILES_COLUMN]),
-                ["{0:.2f}".format(v) for v in subset[ACTIVITY_MODEL_COLUMN]],
-                per_row=8, size=(170, 150),
-            )
+    top = library.merge(ids, on=LIBRARY_SMILES_COLUMN, how="left").sort_values(
+        ACTIVITY_MODEL_COLUMN, ascending=False).head(N_TOP_HITS)
+    st.caption("The {0} highest scoring.".format(N_TOP_HITS))
+    draw_molecules_grid(
+        list(top[LIBRARY_SMILES_COLUMN]),
+        ["{0} · {1:.2f}".format(r[RAFIKI_ID_LABEL], r[ACTIVITY_MODEL_COLUMN])
+         for _, r in top.iterrows()],
+        per_row=8, size=(170, 150),
+    )
 
     questions(q4, "q4")
     advance("step4", "profiling", "Get a richer profile of molecules")
@@ -391,7 +438,8 @@ def the_full_picture():
 
     library = cached_library(st.session_state["library"])
     heading("the_full_picture")
-    hint(RESULTS_HINT)
+    st.markdown(PROFILING_INTRO)
+    hint(NATURAL_PRODUCTS_NOTE)
 
     table = library.rename(columns={
         LIBRARY_SMILES_COLUMN: "smiles",
@@ -410,19 +458,39 @@ def the_full_picture():
     table = table[
         [RAFIKI_ID_LABEL, "smiles", ACTIVITY_MODEL_LABEL] + list(COLUMN_LABELS.values())
     ].rename(columns={"smiles": SMILES_LABEL})
-    st.dataframe(table, height=430, hide_index=True)
+    shown = _filter_and_sort(
+        table, [ACTIVITY_MODEL_LABEL] + list(COLUMN_LABELS.values()), RAFIKI_ID_LABEL)
+    st.caption("{0} of {1} compounds".format(len(shown), len(table)))
+    # Column selection is enabled only for its documented side effect: it turns
+    # off the header's own sorting. That sorting is client side, so it would
+    # reorder the table without reordering the structures drawn underneath. The
+    # "Sort by" control above does the job where Python can see it.
+    st.dataframe(
+        shown, height=430, hide_index=True,
+        on_select="rerun", selection_mode="single-column", key="profile_table",
+    )
     st.download_button(
-        "Download this table", table.to_csv(index=False).encode(),
+        "Download full table", table.to_csv(index=False).encode(),
         file_name=st.session_state["library"].replace(".csv", "_predictions.csv"),
         mime="text/csv", icon=":material/download:",
     )
+
+    top = shown.head(N_PROFILE_SHOWN)
+    if len(top):
+        st.caption("The first {0} in the table above.".format(len(top)))
+        draw_molecules_grid(
+            list(top[SMILES_LABEL]), list(top[RAFIKI_ID_LABEL].fillna("")),
+            per_row=8, size=(170, 150),
+        )
+
     questions(q5, "q5")
+    # Secondary: going to the form is a side trip, and the page's own forward
+    # step is the primary one.
     st.link_button(
-        "Submit your five candidates", PICKS_FORM_URL,
-        icon=":material/open_in_new:", type="primary",
+        "Submit your five candidates", PICKS_FORM_URL, icon=":material/open_in_new:",
     )
-    models_used("the_full_picture")
     advance("step5", "collective", "See what everyone else picked")
+    models_used("the_full_picture")
 
 
 def collective_picks():

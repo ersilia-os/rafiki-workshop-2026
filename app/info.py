@@ -48,7 +48,7 @@ STEP_TEXT = {
         "Train supervised ML models using two molecular featurizers", ""
     ),
     "screen_a_library": ("Run a small virtual screening experiment", ""),
-    "the_full_picture": ("Activity is only the first column", ""),
+    "the_full_picture": ("The Ersilia Model Hub as a quick profiling tool", ""),
     "collective_picks": (
         "What did the room choose?",
         "Every group nominated five compounds. This is all of them together - which is a "
@@ -136,13 +136,23 @@ STEP_MODELS = {
     "hit_expansion": ["eos4q1a", "eos6ost", "eos8lcw", "eos3lyd", "eos5eya", "eos6wb7"],
 }
 
-RESULTS_HINT = (
-    "It will help you to focus on only two or three endpoints at the beginning. Try to "
-    "understand what the numbers mean - is it a probability, a predicted experimental "
-    "value, a score? - and whether we want higher or lower numbers in a hit (high "
-    "bioactivity and low cytotoxicity, for instance). The article behind every model is "
-    "linked from the GitBook documentation."
+PROFILING_INTRO = (
+    "Explore the table carefully and try to understand the meaning of the columns and "
+    "their dimensions. Not all columns are equally important. These columns come from "
+    "the [Ersilia Model Hub](https://catalog.ersilia.io). You can find the corresponding "
+    "publications in [this folder](https://drive.google.com/drive/folders/"
+    "1fk-nfM5hU2O5MwufJNSCBEfypi-nGqD6?usp=sharing)."
 )
+
+# The green note on the same page. This is a natural products course.
+NATURAL_PRODUCTS_NOTE = (
+    "This is a natural products course, so it would be good to prioritise natural "
+    "products. **Natural product likeness** is the column for that - the higher the "
+    "score, the more the compound looks like something nature would make."
+)
+
+# How many of the table's rows to draw as structures underneath it.
+N_PROFILE_SHOWN = 16
 
 ECBD_ASSAY_URL = "https://ecbd.eu/assays/EOS300078"
 
@@ -240,7 +250,7 @@ COLUMN_LABELS = {
     "eos4djh_qed": "QED",
 }
 
-N_TOP_HITS = 16
+N_TOP_HITS = 24        # shown as structures once the screen has run
 
 # --- Hit expansion -----------------------------------------------------------
 # One natural product, platensimycin, sits in all six libraries and ranks in the
@@ -347,8 +357,8 @@ q4 = [
 ]
 
 q5 = [
-    "- Activity is not enough. What else in this table would stop you?",
-    "- A compound is predicted active but flags PAINS. What now?",
+    "- Activity is not enough. What else in this table matters?",
+    "- Would you pick compounds that resemble known antibiotics?",
     "- You can synthesise 5 compounds, which ones and why?",
 ]
 
