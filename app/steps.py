@@ -27,7 +27,7 @@ from info import (
     PARENT_EFFLUX, PARENT_NAME, PARENT_SAUREUS, PARENT_SMILES, PRETRAINED_FILE,
     PROJECTION_FILE,
     RAFIKI_IDS_FILE, RAFIKI_ID_LABEL,
-    PROJECTION_X, PROJECTION_Y, READOUT_COLUMN, READOUT_LABEL, SAUREUS_THRESHOLD,
+    PROJECTION_X, PROJECTION_Y, READOUT_COLUMN, READOUT_LABEL,
     MODELS, MODEL_HUB_URL, NATURAL_PRODUCTS_NOTE, N_PROFILE_SHOWN,
     PROFILING_INTRO, SAMPLING_CAVEAT, SMILES_COLUMN, STEP_MODELS, STEP_TEXT,
     TRAINING_FILE, ECBD_ASSAY_URL,
@@ -756,18 +756,19 @@ def hit_expansion():
             st.session_state["efflux_run"] = True
             st.rerun()
     else:
-        # Where to draw the line is the discussion, so the lines move. The
-        # defaults are the two reference values: the S. aureus model's own
-        # threshold, and platensimycin's efflux score.
+        # Where to draw the lines is the discussion, so both start in the
+        # middle of their range. A default on a reference value - the model's
+        # own threshold, the parent's score - would read as the right answer
+        # and nobody would move it.
         limits = st.columns(2)
+        x_lo, x_hi = _floor(analogues[ANALOGUE_X].min()), _ceil(analogues[ANALOGUE_X].max())
+        y_lo, y_hi = _floor(analogues[ANALOGUE_Y].min()), _ceil(analogues[ANALOGUE_Y].max())
         x_cut = limits[0].slider(
             "Predicted S. aureus activity of at least",
-            _floor(analogues[ANALOGUE_X].min()), _ceil(analogues[ANALOGUE_X].max()),
-            SAUREUS_THRESHOLD, 0.01, key="cut_saureus")
+            x_lo, x_hi, round((x_lo + x_hi) / 2, 2), 0.01, key="cut_saureus")
         y_cut = limits[1].slider(
             "Predicted efflux evasion of at least",
-            _floor(analogues[ANALOGUE_Y].min()), _ceil(analogues[ANALOGUE_Y].max()),
-            PARENT_EFFLUX, 0.01, key="cut_efflux")
+            y_lo, y_hi, round((y_lo + y_hi) / 2, 2), 0.01, key="cut_efflux")
         picked = analogues.assign(
             selected=(analogues[ANALOGUE_X] >= x_cut) & (analogues[ANALOGUE_Y] >= y_cut))
         st.caption(

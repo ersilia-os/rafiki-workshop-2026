@@ -316,7 +316,6 @@ GENERATORS = [
 
 # Reference values for the stereo-defined natural product.
 PARENT_SAUREUS, PARENT_EFFLUX = 0.830, 0.492
-SAUREUS_THRESHOLD = 0.791
 
 PARENT_BLURB = (
     "Platensimycin is a natural product from the soil bacterium *Streptomyces "
