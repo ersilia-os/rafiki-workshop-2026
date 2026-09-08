@@ -3,7 +3,17 @@ import os
 # Everything that changes between workshop editions lives in this file.
 
 TITLE = "Rafiki Workshop 2026"
-PAGE_ICON = ":microbe:"
+ORGANISATION = "Ersilia Open Source Initiative"
+
+# The top navigation: url_path, tab label, icon, and the function in steps.py.
+PAGES = [
+    ("data", "Data", ":material/table:", "understand_the_data"),
+    ("cutoff", "Cut-off", ":material/content_cut:", "choose_a_cutoff"),
+    ("train", "Train", ":material/model_training:", "train_a_model"),
+    ("screen", "Screen", ":material/search:", "screen_a_library"),
+    ("results", "Results", ":material/list_alt:", "the_full_picture"),
+    ("expand", "Expand", ":material/hub:", "hit_expansion"),
+]
 
 about = [
     "This app is part of the Rafiki Workshop 2026.",

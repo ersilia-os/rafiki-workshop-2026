@@ -1,2 +1,35 @@
 [theme]
 base = "light"
+
+# Ersilia house web design system (ersilia-skills/skills/html-formatting).
+# Plum #50285A is identity and stays out of the chrome; periwinkle is interaction.
+backgroundColor = "#FAFAFC"
+secondaryBackgroundColor = "#F4F4F8"
+textColor = "#2C3E50"
+primaryColor = "#6C5CE7"
+linkColor = "#6C5CE7"
+linkUnderline = false
+borderColor = "#E6E6EE"
+showWidgetBorder = true
+showSidebarBorder = true
+
+baseRadius = "0.75rem"
+buttonRadius = "0.5rem"
+baseFontSize = 15
+font = "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+codeFont = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+headingFontSizes = ["2rem", "1.5rem", "1.15rem", "1rem", "0.95rem", "0.85rem"]
+headingFontWeights = [700, 600, 600, 500, 500, 500]
+metricValueFontSize = "1.75rem"
+metricValueFontWeight = 600
+dataframeHeaderBackgroundColor = "#F4F4F8"
+dataframeBorderColor = "#E6E6EE"
+
+# Brand hues snapped for legibility; red sits in slot 6 by design.
+chartCategoricalColors = ["#6d5de7", "#e2a72e", "#247dad", "#6cbf5a", "#af5cc7", "#e63745"]
+chartSequentialColors = ["#b2b4d7", "#9495d1", "#7876ca", "#5f55c2", "#492eb8"]
+
+greenColor = "#3F9D6B"
+orangeColor = "#C98A1E"
+redColor = "#D9534F"
+violetColor = "#50285A"
