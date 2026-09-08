@@ -180,23 +180,24 @@ def cutoff_in_use():
     )
 
 
-def advance(key, url_path, label, icon=":material/arrow_forward:"):
-    """Unlock the next page and go there. Remembered for the rest of the session.
+def advance(key, url_path, label, icon=":material/arrow_forward:", kind="primary"):
+    """Unlock the next page and go there.
+
+    Shown whenever the page is, including after it has been used: it used to
+    hide itself once the flag was set, which meant the way onward vanished from
+    any page you came back to.
 
     Setting the flag is not enough on its own. app.py builds the navigation
     from these flags *before* it runs the page body that contains this button,
     so on the click itself the new page is not in the nav yet and nothing
-    visibly happens - which is why the button used to need two clicks. The
-    rerun rebuilds the nav; `goto` asks app.py to land on the page the label
-    promises, once that page exists.
+    visibly happens - which is why the button once needed two clicks. The rerun
+    rebuilds the nav; `goto` asks app.py to land on the page the label promises,
+    once that page exists.
     """
-    if st.session_state.get(key):
-        return True
-    if st.button(label, key="button_" + key, icon=icon, type="primary"):
+    if st.button(label, key="button_" + key, icon=icon, type=kind):
         st.session_state[key] = True
         st.session_state["goto"] = url_path
         st.rerun()
-    return False
 
 
 def training_data():
@@ -484,12 +485,13 @@ def the_full_picture():
         )
 
     questions(q5, "q5")
-    # Secondary: going to the form is a side trip, and the page's own forward
-    # step is the primary one.
+    # Submitting is what this page is for, so it keeps the periwinkle. Moving on
+    # is the quieter of the two, which is how they stay distinguishable.
     st.link_button(
-        "Submit your five candidates", PICKS_FORM_URL, icon=":material/open_in_new:",
+        "Submit your five candidates", PICKS_FORM_URL,
+        icon=":material/open_in_new:", type="primary",
     )
-    advance("step5", "collective", "See what everyone else picked")
+    advance("step5", "collective", "See what everyone else picked", kind="secondary")
     models_used("the_full_picture")
 
 

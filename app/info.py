@@ -147,7 +147,7 @@ PROFILING_INTRO = (
 # The green note on the same page. This is a natural products course.
 NATURAL_PRODUCTS_NOTE = (
     "This is a natural products course, so it would be good to prioritise natural "
-    "products. **Natural product likeness** is the column for that - the higher the "
+    "products. Natural product likeness is the column for that - the higher the "
     "score, the more the compound looks like something nature would make."
 )
 
