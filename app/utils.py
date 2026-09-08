@@ -6,7 +6,9 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import roc_auc_score, roc_curve
 from sklearn.model_selection import train_test_split
 
-from info import READOUT_COLUMN
+from info import (
+    DOWNSAMPLE_ABOVE, DOWNSAMPLE_KEPT, DOWNSAMPLE_SOURCE, READOUT_COLUMN,
+)
 
 DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data"))
 
@@ -25,6 +27,25 @@ def binarize(df, cutoff, higher_is_active):
     df = df.copy()
     values = df[READOUT_COLUMN]
     df["Binary"] = (values >= cutoff if higher_is_active else values <= cutoff).astype(int)
+    return df
+
+
+def screen_scale(df, readout_column):
+    """Add a per-compound weight that undoes the downsampling, for display only.
+
+    Compounds at or above DOWNSAMPLE_ABOVE were all kept, so they stand for
+    themselves and weigh 1. Those below it survived at DOWNSAMPLE_KEPT of
+    DOWNSAMPLE_SOURCE, so each one stands for that many times more. Summing the
+    weights over a histogram bin estimates what the original screen held there,
+    which is what makes the cliff at the sampling threshold disappear.
+
+    Nothing that is fitted or counted elsewhere uses this: the model trains on
+    the rows as they are.
+    """
+    df = df.copy()
+    df["Weight"] = np.where(
+        df[readout_column] >= DOWNSAMPLE_ABOVE, 1.0, DOWNSAMPLE_SOURCE / DOWNSAMPLE_KEPT
+    )
     return df
 
 

@@ -29,17 +29,28 @@ GRID = "#DDDDDD"
 HISTOGRAM_COUNT_SCALE = "sqrt"
 
 
-def plot_readout_histogram(df, readout_column, cutoff, label, bins=45):
-    """Histogram of the readout. Bins on the active side of the cut-off are red."""
-    values = df[readout_column].dropna()
-    counts, edges = np.histogram(values, bins=bins)
-    active_counts, _ = np.histogram(values[df["Binary"] == 1], bins=edges)
+def plot_readout_histogram(df, readout_column, cutoff, label, bins=45,
+                           weight_column=None, count_label="Compounds"):
+    """Histogram of the readout, bars past the cut-off in the active colour.
+
+    With `weight_column`, bins sum weights instead of counting rows. That is how
+    the downsampling is undone for display - see utils.screen_scale.
+    """
+    frame = df[df[readout_column].notna()]
+    values = frame[readout_column].to_numpy()
+    weights = frame[weight_column].to_numpy() if weight_column else None
+    active = (frame["Binary"] == 1).to_numpy()
+
+    counts, edges = np.histogram(values, bins=bins, weights=weights)
+    active_counts, _ = np.histogram(
+        values[active], bins=edges, weights=None if weights is None else weights[active]
+    )
 
     hist = pd.DataFrame({
-        "start": edges[:-1], "end": edges[1:], "Compounds": counts,
+        "start": edges[:-1], "end": edges[1:], count_label: counts,
         "Active": active_counts > counts / 2,
     })
-    hist = hist[hist["Compounds"] > 0]
+    hist = hist[hist[count_label] > 0]
 
     bars = (
         alt.Chart(hist)
@@ -51,7 +62,7 @@ def plot_readout_histogram(df, readout_column, cutoff, label, bins=45):
                     axis=alt.Axis(tickCount=6, grid=False)),
             x2="end:Q",
             y=alt.Y(
-                "Compounds:Q",
+                "{0}:Q".format(count_label),
                 scale=alt.Scale(type=HISTOGRAM_COUNT_SCALE),
                 axis=alt.Axis(tickCount=4),
             ),

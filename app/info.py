@@ -46,9 +46,19 @@ STEP_TEXT = {
     "hit_expansion": ("Can you beat the natural product?", ""),
 }
 
+# data/saureus.csv is a downsample. scripts/01_prepare_saureus_dataset.py kept
+# every compound at or above DOWNSAMPLE_ABOVE and sampled the rest, which leaves
+# a cliff in the histogram at that value. The two counts are what it kept below
+# the line and what the source screen held, so their ratio undoes the sampling.
+DOWNSAMPLE_ABOVE = 50
+DOWNSAMPLE_KEPT = 9379
+DOWNSAMPLE_SOURCE = 100247
+
 SAMPLING_CAVEAT = (
     "Every active was kept and the inactives were downsampled to reach 10,000 compounds, "
-    "so the hit rate you see here is about ten times higher than in the original screen. "
+    "so the hit rate in this file is about ten times higher than in the original screen. "
+    "The histogram corrects for that - bins below 50% are scaled back up - but the counts "
+    "beside the slider are this file's own, and they are what the model will train on. "
     "It is a teaching set, not a basis for any claim about how often a screen hits."
 )
 

@@ -27,7 +27,8 @@ from plots import (
 )
 from molecules import draw_molecule, draw_molecules_grid
 from utils import (
-    binarize, data_path, descriptor_preview, interpolate_roc_curves, train_classifier,
+    binarize, data_path, descriptor_preview, interpolate_roc_curves, screen_scale,
+    train_classifier,
 )
 
 
@@ -174,9 +175,15 @@ def choose_a_cutoff():
         stats[3].metric("Inactives", int(len(dt) - dt["Binary"].sum()))
 
     cols = st.columns(2, gap="medium")
-    cols[0].caption("Distribution of {0}".format(READOUT_LABEL.lower()))
+    cols[0].caption(
+        "Distribution of {0}, scaled back to the whole screen".format(READOUT_LABEL.lower())
+    )
     cols[0].altair_chart(
-        plot_readout_histogram(dt, READOUT_COLUMN, cutoff, READOUT_LABEL), width="stretch"
+        plot_readout_histogram(
+            screen_scale(dt, READOUT_COLUMN), READOUT_COLUMN, cutoff, READOUT_LABEL,
+            weight_column="Weight", count_label="Compounds in the screen",
+        ),
+        width="stretch",
     )
     cols[1].caption("t-SNE projection onto Ersilia's reference chemical space")
     if os.path.exists(data_path(PROJECTION_FILE)):
