@@ -16,10 +16,7 @@ hue, a hairline of the hue, and the label in the hue. Never a saturated fill.
 That is the active nav tab, the six library buttons and the three callouts.
 """
 
-def _css_string(text):
-    """Quote a string for CSS `content`, escaping what would end it early."""
-    return '"%s"' % text.replace("\\", "\\\\").replace('"', '\\"')
-
+import json
 
 PERIWINKLE = "#6C5CE7"
 TINT_SOFT = "rgba(108, 92, 231, 0.07)"   # periwinkle wash: hover and the current tab
@@ -27,6 +24,7 @@ SURFACE = "#FFFFFF"
 RECESSED = "#F4F4F8"
 EDGE = "#E6E6EE"
 MUTED = "#6B6675"
+INK = "#2C3E50"
 
 # The three callout hues, from the design system's semantic tokens.
 GUIDE = "#3F9D6B"     # how to read the page
@@ -72,8 +70,6 @@ CALLOUT_RULES = "".join("""
 """.format(sel=sel, hue=hue, bg=RECESSED, edge=EDGE) for sel, hue in (
     (".st-key-hint", GUIDE),
     ('[class*="st-key-talk"]', DISCUSS),
-    # A parameter carried over from an earlier step: state, so periwinkle.
-    (".st-key-cutoff-in-use", PERIWINKLE),
 ))
 
 CSS = """
@@ -155,35 +151,54 @@ a[aria-current="page"] {
 }
 
 
-def header_label(text):
-    """Name the workshop beside the Ersilia wordmark, in place of a sidebar.
+def header_label(text, url):
+    """Name the workshop beside the Ersilia wordmark, linked to its handbook.
 
-    Written with CSS rather than a widget because the header is Streamlit's own
-    chrome and takes no content from the script. The wordmark is an <img>, and a
-    replaced element cannot carry ::after, so the text hangs off its container.
+    Built as a real anchor rather than CSS, because it needs its own href: the
+    wordmark already links to ersilia.io, and a ::after cannot carry a second
+    destination. The header is Streamlit's own chrome and takes no content from
+    the script, so the node is inserted by hand.
+
+    Kept out of DOMPurify's way by building the node instead of writing markup -
+    a <script> whose source contains literal HTML with attributes is discarded
+    whole, and nothing runs. Idempotent, and retried briefly because this can
+    execute before the header has mounted.
     """
-    return """<style>
-/* The label hangs off the logo's own anchor, so it would otherwise pick up the
-   link underline. */
-[data-testid="stLogoLink"] { text-decoration: none !important; }
-[data-testid="stHeader"] [data-testid="stLogoLink"]::after,
-[data-testid="stHeader"] [data-testid="stLogoSpacer"]::after {
-    content: %(text)s;
-    margin-left: 0.85rem;
-    padding-left: 0.85rem;
-    border-left: 1px solid %(edge)s;
-    color: %(muted)s;
-    font-size: 0.9rem;
-    font-weight: 500;
-    white-space: nowrap;
-    text-decoration: none;
-    cursor: default;
-}
-[data-testid="stHeader"] [data-testid="stLogoLink"] {
-    display: inline-flex !important;
-    align-items: center;
-}
-</style>""" % {"text": _css_string(text), "edge": EDGE, "muted": MUTED}
+    return """<script>
+(function () {
+  var TEXT = %(text)s, URL = %(url)s, ID = 'rafiki-header-label';
+  function mount() {
+    var anchor = document.querySelector('[data-testid="stLogoLink"]');
+    if (!anchor) { return false; }
+    if (document.getElementById(ID)) { return true; }
+    var a = document.createElement('a');
+    a.id = ID;
+    a.href = URL;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.textContent = TEXT;
+    a.style.marginLeft = '0.85rem';
+    a.style.paddingLeft = '0.85rem';
+    a.style.borderLeft = '1px solid %(edge)s';
+    a.style.color = %(ink)s;
+    a.style.fontSize = '0.9rem';
+    a.style.fontWeight = '500';
+    a.style.whiteSpace = 'nowrap';
+    a.style.textDecoration = 'none';
+    a.addEventListener('mouseenter', function () { a.style.color = %(brand)s; });
+    a.addEventListener('mouseleave', function () { a.style.color = %(ink)s; });
+    anchor.parentNode.insertBefore(a, anchor.nextSibling);
+    return true;
+  }
+  if (!mount()) {
+    var tries = 0;
+    var timer = setInterval(function () {
+      if (mount() || ++tries > 40) { clearInterval(timer); }
+    }, 100);
+  }
+})();
+</script>""" % {"text": json.dumps(text), "url": json.dumps(url),
+                "edge": EDGE, "ink": json.dumps(INK), "brand": json.dumps(PERIWINKLE)}
 
 
 def locked_tabs(url_paths):

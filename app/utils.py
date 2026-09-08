@@ -1,12 +1,11 @@
+import json
 import os
 import re
 from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import roc_auc_score, roc_curve
-from sklearn.model_selection import train_test_split
+from sklearn.metrics import roc_curve
 
 from info import (
     DOWNSAMPLE_ABOVE, DOWNSAMPLE_KEPT, DOWNSAMPLE_SOURCE, READOUT_COLUMN,
@@ -106,22 +105,45 @@ def load_catalogue(library_filenames, smiles_column, activity_column):
     return catalogue.drop_duplicates(subset=[smiles_column])
 
 
+def load_pretrained(filename):
+    """The cross-validation grid the Train page reads.
+
+    Returns plain arrays and a metadata dict rather than the NpzFile, so nothing
+    holds the file open across a rerun.
+    """
+    with np.load(data_path(filename), allow_pickle=False) as grid:
+        out = {k: grid[k] for k in grid.files if k != "meta"}
+        out["meta"] = json.loads(str(grid["meta"]))
+    return out
+
+
+def pretrained_at(grid, descriptor, cutoff):
+    """One descriptor at one cut-off: the AUROCs, the ROC curves ready for
+    plot_roc, and one fold's held-out scores. None if the grid has no such
+    cut-off, which should not happen while CUTOFF_STEP matches the grid."""
+    labels = grid["meta"]["descriptors"]
+    matches = np.flatnonzero(np.isclose(grid["cutoffs"], cutoff))
+    if descriptor not in labels or not len(matches):
+        return None
+    d, c = labels.index(descriptor), int(matches[0])
+
+    curves = pd.DataFrame(
+        {"tpr_cv{0}".format(f + 1): grid["roc_tpr"][d, c, f]
+         for f in range(grid["roc_tpr"].shape[2])}
+    )
+    curves["Mean TPR"] = grid["roc_mean"][d, c]
+    curves["FPR"] = grid["roc_fpr"]
+    return {
+        "aurocs": grid["aurocs"][d, c],
+        "curves": curves,
+        "fold": (grid["fold_y"][d, c], grid["fold_p"][d, c]),
+        "preview": grid["meta"]["preview"][descriptor],
+        "shape": tuple(grid["meta"]["shape"][descriptor]),
+    }
+
+
 def load_analogues(filename):
     return pd.read_csv(data_path(filename))
-
-
-def train_classifier(X, y, n_splits=5, test_size=0.2):
-    X, y = np.array(X), np.array(y)
-    model = RandomForestClassifier(n_jobs=-1)
-    aurocs, cv_data = [], []
-    for _ in range(n_splits):
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, stratify=y)
-        model.fit(X_train, y_train)
-        y_pred = model.predict_proba(X_test)[:, 1]
-        aurocs += [roc_auc_score(y_test, y_pred)]
-        cv_data += [(y_test, y_pred)]
-    model.fit(X, y)
-    return {"model": model, "aurocs": aurocs, "cv_data": cv_data, "X": X, "y": y}
 
 
 def interpolate_roc_curves(cv_data, n_points=100):

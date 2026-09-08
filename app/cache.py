@@ -9,8 +9,9 @@ import os
 import streamlit as st
 
 from utils import (
-    data_path, load_analogues, load_descriptors, load_library, load_projection,
-    load_catalogue, load_rafiki_ids, load_responses, load_training_data,
+    data_path, load_analogues, load_library, load_projection,
+    load_catalogue, load_pretrained, load_rafiki_ids, load_responses,
+    load_training_data,
 )
 
 
@@ -21,11 +22,6 @@ def data_version(filename):
 @st.cache_data(show_spinner=False)
 def _training_data(filename, version):
     return load_training_data(filename)
-
-
-@st.cache_data(show_spinner=False)
-def _descriptors(filename, version):
-    return load_descriptors(filename)
 
 
 @st.cache_data(show_spinner=False)
@@ -50,10 +46,6 @@ def _analogues(filename, version):
 
 def cached_training_data(filename):
     return _training_data(filename, data_version(filename))
-
-
-def cached_descriptors(filename):
-    return _descriptors(filename, data_version(filename))
 
 
 def cached_library(filename):
@@ -87,6 +79,15 @@ def clear_responses():
 def cached_catalogue(filenames, smiles_column, activity_column):
     version = max(data_version(f) for f in filenames)
     return _catalogue(tuple(filenames), smiles_column, activity_column, version)
+
+
+@st.cache_data(show_spinner=False)
+def _pretrained(filename, version):
+    return load_pretrained(filename)
+
+
+def cached_pretrained(filename):
+    return _pretrained(filename, data_version(filename))
 
 
 def cached_rafiki_ids(filename):

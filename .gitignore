@@ -224,3 +224,11 @@ data/.placeholder
 
 # macOS
 .DS_Store
+
+# Pretrained forests and the per-cell resume files from
+# scripts/06_pretrain_models.py. The grid the app reads, data/pretrained.npz, IS
+# committed; these are the working files behind it - about 660 MB of joblib
+# models, kept on disk because a trained model is worth having, and far too big
+# for git.
+data/models/
+data/pretrained_parts/

@@ -5,6 +5,7 @@ import os
 TITLE = "RAFIKI Workshop 2026"
 # Sits beside the Ersilia wordmark in the header, in place of a sidebar.
 WORDMARK_LABEL = "RAFIKI Workshop, Nairobi, 2026"
+WORKSHOP_URL = "https://ersilia.gitbook.io/ersilia-workshops/rafiki"
 ORGANISATION = "Ersilia Open Source Initiative"
 
 # The top navigation: url_path, tab label, icon, and the function in steps.py.
@@ -37,14 +38,16 @@ has screened.
 # Heading and standfirst for each page, keyed by its function in steps.py.
 STEP_TEXT = {
     "understand_the_data": (
-        "European Chemical Biology Database",
+        "*Staphylococcus aureus* activity in EU-OPENSCREEN",
         "We have downloaded the available data from the ECBD related to the *S. aureus* "
         "screening from EU-OPENSCREEN. Read their information to understand what we are "
         "looking at.",
     ),
     "choose_a_cutoff": ("Where does active begin?", ""),
-    "train_a_model": ("Two ways to describe a molecule", ""),
-    "screen_a_library": ("A thousand compounds you have never seen", ""),
+    "train_a_model": (
+        "Train supervised ML models using two molecular featurizers", ""
+    ),
+    "screen_a_library": ("Run a small virtual screening experiment", ""),
     "the_full_picture": ("Activity is only the first column", ""),
     "collective_picks": (
         "What did the room choose?",
@@ -156,7 +159,9 @@ HIGHER_IS_ACTIVE = True
 
 # Slider bounds for the activity cut-off, in the units of READOUT_COLUMN.
 # CUTOFF_DEFAULT = None starts the slider at the mean of the readout.
-CUTOFF_MIN, CUTOFF_MAX, CUTOFF_STEP = 0.0, 100.0, 0.5
+# The step matches the pretrained grid: one entry per whole percent, so every
+# position the slider can reach has been trained. See scripts/06_pretrain_models.py.
+CUTOFF_MIN, CUTOFF_MAX, CUTOFF_STEP = 0.0, 100.0, 1.0
 CUTOFF_DEFAULT = None
 
 # --- Precomputed featurisations ---------------------------------------------
@@ -171,6 +176,21 @@ DESCRIPTORS = {
 # 2D projection onto Ersilia's reference chemical space (eos1klk). Small enough
 # to stay a CSV; columns are pca_x/y, tmap_x/y, tsne_x/y, umap_x/y.
 PROJECTION_FILE = "saureus_eos1klk.csv"
+
+# Cross-validation results for every descriptor at every whole-percent cut-off,
+# built by scripts/06_pretrain_models.py. The Train page reads this and fits
+# nothing; the descriptor matrices are never loaded by the app.
+PRETRAINED_FILE = "pretrained.npz"
+
+# Revealed a line at a time when a model is opened. Each is a true statement
+# about how the numbers were produced.
+TRAINING_STEPS = [
+    "{descriptor}: {n_features} numbers per molecule",
+    "Random forest, {n_trees} trees",
+    "{n_splits}-fold stratified split, {test_pct}% held out each time",
+    "AUROC averaged over the {n_splits} held-out folds",
+]
+TRAINING_SECONDS = 5.0
 PROJECTION_X, PROJECTION_Y = "tsne_x", "tsne_y"
 
 # --- Screening libraries -----------------------------------------------------
@@ -187,6 +207,12 @@ LIBRARY_SMILES_COLUMN = "input"
 # a participant's RAFIKI-0421 has to mean the same compound in every session.
 RAFIKI_IDS_FILE = "rafiki_ids.csv"
 RAFIKI_ID_LABEL = "RAFIKI ID"
+
+# Column headings as a reader should see them. "smiles" and "growth_inhibition"
+# are the names in the CSVs; these are what the tables show. Renamed at display
+# time only - "smiles" stays the join key everywhere in the code.
+SMILES_LABEL = "SMILES"
+READOUT_TABLE_LABEL = "Growth Inhibition"
 
 # One colour per library, from the house categorical set, so each group can be
 # pointed at "the green one" from the front of the room.
@@ -294,29 +320,29 @@ q1 = [
     "- What does each row represent?",
     "- What exactly was measured, and in what units?",
     "- Do we want higher or lower values?",
-    "- Some values are negative, and some are above 100. How can that be?",
-    "- Is there any other information you'd like to ask collaborators about this data?",
 ]
 
 q2 = [
-    "- Why do we need a cut-off at all, when we already have numbers?",
+    "- Why do we need a cut-off at all?",
     "- What do 0 and 1 mean once we binarise?",
-    "- Where does the cut-off sit on the histogram, and what does the tail contain?",
-    "- The depositors called a compound active at 70% inhibition. Would you?",
     "- Is this dataset balanced?",
 ]
 
 q3 = [
-    "- Look at the two example rows: what is actually being fed to the model?",
     "- What does a Morgan fingerprint encode? And a learned embedding?",
     "- What is a cross-validation experiment, and why do we need one?",
     "- Which descriptor performs better? Is the difference meaningful?",
     "- Would a different cut-off change the ranking?",
 ]
 
+# How many compounds to show before any score is revealed, and how long the
+# prediction run takes to play out.
+N_SCREEN_PREVIEW = 24
+SCREENING_SECONDS = 2.0
+
 q4 = [
-    "- What does a score of 0.9 actually mean here?",
-    "- Which would be a good bioactivity cut-off?",
+    "- What does the activity score mean?",
+    "- Which would be a good score cutoff?",
     "- What else would help us make a decision of which molecules to test?",
 ]
 

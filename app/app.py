@@ -8,7 +8,7 @@ sys.path.append(root)
 
 from info import (
     ORGANISATION, PAGES, READOUT_COLUMN, SMILES_COLUMN, TITLE, TRAINING_FILE,
-    WORDMARK_LABEL,
+    WORDMARK_LABEL, WORKSHOP_URL,
 )
 from style import CSS, header_label, locked_tabs
 from utils import data_path
@@ -56,7 +56,7 @@ def render(spec, number):
     """
     url_path, title, _, step = spec
     st.html(CSS)
-    st.html(header_label(WORDMARK_LABEL))
+    st.html(header_label(WORDMARK_LABEL, WORKSHOP_URL), unsafe_allow_javascript=True)
     st.html(locked_tabs([p[0] for p in PAGES if not unlocked(p[0])]))
     with st.container(key="eyebrow", horizontal=True, vertical_alignment="center"):
         st.caption("Step {0} of {1} · {2}".format(number, len(PAGES), title))

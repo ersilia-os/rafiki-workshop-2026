@@ -7,9 +7,18 @@ import pandas as pd
 alt.data_transformers.disable_max_rows()
 
 
+SURFACE = "#FFFFFF"
+
+
 def _framed(chart):
-    """stylia's habit: keep the full frame, lay a light grid behind the data."""
-    return chart.configure_view(stroke=GRID, strokeWidth=1).configure_axis(
+    """stylia's habit: keep the full frame, lay a light grid behind the data.
+
+    Explicitly white: Streamlit paints Vega charts with secondaryBackgroundColor,
+    which is the recessed #F4F4F8, and that reads as a grey rectangle inside the
+    white cards these sit in.
+    """
+    return chart.configure(background=SURFACE).configure_view(
+        stroke=GRID, strokeWidth=1).configure_axis(
         gridColor=GRID, gridOpacity=0.45, tickCount=5, domainColor=GRID, tickColor=GRID,
         labelColor="#6B6675", titleColor="#6B6675", labelFontSize=11, titleFontSize=11,
     )

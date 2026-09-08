@@ -1,14 +1,16 @@
 """One function per step. Each is registered as a page in app.py."""
 
 import os
+import time
+import zlib
 
 import numpy as np
 import streamlit as st
 
 from cache import (
-    cached_analogues, cached_descriptors, cached_library, cached_projection,
-    cached_catalogue, cached_rafiki_ids, cached_responses, cached_training_data,
-    clear_responses,
+    cached_analogues, cached_library, cached_projection,
+    cached_catalogue, cached_pretrained, cached_rafiki_ids, cached_responses,
+    cached_training_data, clear_responses,
 )
 from info import (
     ACTIVITY_MODEL_COLUMN, ACTIVITY_MODEL_LABEL, ANALOGUES_FILE, ANALOGUE_GENERATORS,
@@ -17,12 +19,15 @@ from info import (
     COLUMN_LABELS, CUTOFF_DEFAULT, CUTOFF_MAX, CUTOFF_MIN, CUTOFF_STEP, DESCRIPTORS,
     HIGHER_IS_ACTIVE, LIBRARY_FILES, LIBRARY_SMILES_COLUMN, N_TOP_HITS,
     CLOSING, CLOSING_TITLE, FORM_RESPONSES_URL, PICKS_FORM_URL,
-    N_COLLECTIVE_SHOWN, RESPONSE_CANDIDATE_COLUMNS, RESPONSE_NAME_COLUMN,
-    PARENT_EFFLUX, PARENT_NAME, PARENT_SAUREUS, PARENT_SMILES, PROJECTION_FILE,
+    N_COLLECTIVE_SHOWN, N_SCREEN_PREVIEW, READOUT_TABLE_LABEL,
+    RESPONSE_CANDIDATE_COLUMNS, SCREENING_SECONDS, SMILES_LABEL,
+    PARENT_EFFLUX, PARENT_NAME, PARENT_SAUREUS, PARENT_SMILES, PRETRAINED_FILE,
+    PROJECTION_FILE,
     RAFIKI_IDS_FILE, RAFIKI_ID_LABEL,
     PROJECTION_X, PROJECTION_Y, READOUT_COLUMN, READOUT_LABEL, SAUREUS_THRESHOLD,
     MODELS, MODEL_HUB_URL, RESULTS_HINT, SAMPLING_CAVEAT, SMILES_COLUMN, STEP_MODELS, STEP_TEXT,
     TRAINING_FILE, ECBD_ASSAY_URL,
+    TRAINING_SECONDS, TRAINING_STEPS,
     q1, q2, q3, q4, q5, q6, q7,
 )
 from plots import (
@@ -31,8 +36,8 @@ from plots import (
 )
 from molecules import draw_molecule, draw_molecules_grid
 from utils import (
-    binarize, data_path, descriptor_preview, interpolate_roc_curves,
-    normalise_rafiki_id, screen_scale, train_classifier,
+    binarize, data_path,
+    normalise_rafiki_id, pretrained_at, screen_scale,
 )
 
 
@@ -50,12 +55,9 @@ def models_used(step):
         "- [`{0}`](https://github.com/ersilia-os/{0}) - {1}".format(i, MODELS[i])
         for i in STEP_MODELS[step]
     )
-    with st.expander("Models used on this page", icon=":material/deployed_code:"):
+    with st.expander("Relevant Ersilia Model Hub models", icon=":material/deployed_code:"):
         st.markdown(listed)
-        st.caption(
-            "There are over 250 models like these, free to browse and run, in the "
-            "[Ersilia Model Hub]({0}).".format(MODEL_HUB_URL)
-        )
+        st.caption("[Browse the Ersilia Model Hub]({0})".format(MODEL_HUB_URL))
 
 
 def hint(text):
@@ -73,6 +75,43 @@ def questions(items, key):
         st.markdown("\n".join(items))
 
 
+def _run_predictions():
+    """Play out the screening run. The scores themselves are columns the library
+    already carries; this is the pacing, so a room sees it happen."""
+    bar = st.progress(0.0, text="{0} · {1}".format(
+        ACTIVITY_MODEL_COLUMN.split("_")[0], ACTIVITY_MODEL_LABEL))
+    ticks = 20
+    for i in range(ticks):
+        time.sleep(SCREENING_SECONDS / ticks)
+        bar.progress((i + 1) / ticks)
+    bar.empty()
+
+
+def _method_lines(label, result, meta):
+    """How the numbers were produced. Every line is a statement about the run
+    that produced this AUROC; none says work is happening now."""
+    facts = {
+        "descriptor": label,
+        "n_features": result["shape"][1],
+        "n_trees": meta["n_trees"],
+        "n_splits": meta["n_splits"],
+        "test_pct": int(round(meta["test_size"] * 100)),
+    }
+    return [step.format(**facts) for step in TRAINING_STEPS]
+
+
+def _reveal_method(label, lines):
+    """Walk the method a line at a time, then hand over to the marker that
+    stays. A result that lands instantly gives a room nothing to look at."""
+    pause = TRAINING_SECONDS / len(lines)
+    with st.status("Fitting {0}".format(label), expanded=True) as status:
+        for line in lines:
+            st.write(line)
+            time.sleep(pause)
+        status.update(label="Trained on {0}".format(label), state="complete",
+                      expanded=False)
+
+
 def cutoff_in_use():
     """Restate the step-1 cut-off on any page whose numbers depend on it.
 
@@ -82,17 +121,15 @@ def cutoff_in_use():
     """
     dt = binarize(training_data(), st.session_state["cutoff"], HIGHER_IS_ACTIVE)
     n_active = int(dt["Binary"].sum())
-    with st.container(border=True, key="cutoff-in-use"):
-        st.caption("Cut-off in use")
-        st.markdown(
-            "You set this on the **Data** page: compounds scoring **{0:.1f}** {1} on {2} "
-            "count as active. That is **{3:,}** actives against **{4:,}** inactives - "
-            "both models below are fitted to those labels.".format(
-                st.session_state["cutoff"],
-                "or above" if HIGHER_IS_ACTIVE else "or below",
-                READOUT_LABEL.lower(), n_active, len(dt) - n_active,
-            )
+    st.markdown(
+        "You set this on the **Data** page: compounds scoring **{0:.1f}** {1} on {2} "
+        "count as active. That is **{3:,}** actives against **{4:,}** inactives - "
+        "both models below are fitted to those labels.".format(
+            st.session_state["cutoff"],
+            "or above" if HIGHER_IS_ACTIVE else "or below",
+            READOUT_LABEL.lower(), n_active, len(dt) - n_active,
         )
+    )
 
 
 def advance(key, url_path, label, icon=":material/arrow_forward:"):
@@ -126,10 +163,6 @@ def default_cutoff(values):
     return float(min(max(mean, CUTOFF_MIN), CUTOFF_MAX))
 
 
-def binary_labels():
-    return list(binarize(training_data(), st.session_state["cutoff"], HIGHER_IS_ACTIVE)["Binary"])
-
-
 # --- Step 1 ------------------------------------------------------------------
 
 def understand_the_data():
@@ -139,7 +172,12 @@ def understand_the_data():
         "Open the assay record on ECBD", ECBD_ASSAY_URL, icon=":material/open_in_new:"
     )
     cols = st.columns([2, 1], gap="medium")
-    cols[0].dataframe(df[[SMILES_COLUMN, READOUT_COLUMN]], height=460)
+    cols[0].dataframe(
+        df[[SMILES_COLUMN, READOUT_COLUMN]].rename(
+            columns={SMILES_COLUMN: SMILES_LABEL, READOUT_COLUMN: READOUT_TABLE_LABEL}
+        ),
+        height=460,
+    )
     with cols[1]:
         questions(q1, "q1")
 
@@ -173,10 +211,7 @@ def choose_a_cutoff():
                         help=SAMPLING_CAVEAT)
 
     cols = st.columns(2, gap="medium")
-    cols[0].caption(
-        "Distribution of {0}, scaled back to the whole screen. The bars are "
-        "square-root scaled, so the tail stays visible.".format(READOUT_LABEL.lower())
-    )
+    cols[0].caption("Distribution of {0}".format(READOUT_LABEL.lower()))
     cols[0].altair_chart(
         plot_readout_histogram(
             screen_scale(dt, READOUT_COLUMN), READOUT_COLUMN, cutoff, READOUT_LABEL,
@@ -184,7 +219,7 @@ def choose_a_cutoff():
         ),
         width="stretch",
     )
-    cols[1].caption("t-SNE projection onto Ersilia's reference chemical space")
+    cols[1].caption("Chemical space visualization of the screening library")
     if os.path.exists(data_path(PROJECTION_FILE)):
         cols[1].altair_chart(
             plot_chemical_space(
@@ -197,17 +232,25 @@ def choose_a_cutoff():
 
     questions(q2, "q2")
 
-    if st.button("Use this cut-off", icon=":material/check:", type="primary"):
-        if st.session_state.get("cutoff") != cutoff:
-            # Anything fitted against the old labels is now stale.
-            for key in ("features", "models", "predictions"):
-                st.session_state[key].clear()
-        st.session_state["cutoff"] = cutoff
-        st.session_state["cutoff_set"] = True
-        st.rerun()
-
-    if st.session_state.get("cutoff") is not None:
-        st.success("Cut-off in use: {0}".format(st.session_state["cutoff"]))
+    # One button, not two: accepting the cut-off and going to train it is a
+    # single decision. The badge beside it says what is already in use, which
+    # matters when someone comes back to this page to change their mind.
+    with st.container(horizontal=True, wrap=False, vertical_alignment="center"):
+        if st.button("Ready to train a model!", icon=":material/arrow_forward:",
+                     type="primary"):
+            if st.session_state.get("cutoff") != cutoff:
+                # Anything fitted against the old labels is now stale.
+                for key in ("features", "models", "predictions"):
+                    st.session_state[key].clear()
+            st.session_state["cutoff"] = cutoff
+            st.session_state["cutoff_set"] = True
+            st.session_state["goto"] = "train"
+            st.rerun()
+        if st.session_state.get("cutoff") is not None:
+            st.badge(
+                "Cut-off in use: {0:.1f}".format(st.session_state["cutoff"]),
+                color="green", icon=":material/check_circle:",
+            )
 
 
 # --- Step 3 ------------------------------------------------------------------
@@ -217,48 +260,63 @@ def train_a_model():
         st.info("Choose a cut-off first.", icon=":material/info:")
         return
 
-    y = binary_labels()
     heading("train_a_model")
     cutoff_in_use()
 
+    if not os.path.exists(data_path(PRETRAINED_FILE)):
+        st.error(
+            "Missing `data/{0}`. Build it with `python scripts/06_pretrain_models.py`.".format(
+                PRETRAINED_FILE
+            ),
+            icon=":material/error:",
+        )
+        return
+    grid = cached_pretrained(PRETRAINED_FILE)
+
     cols = st.columns(len(DESCRIPTORS), gap="medium")
-    for i, (label, filename) in enumerate(DESCRIPTORS.items()):
+    for i, label in enumerate(DESCRIPTORS):
         with cols[i].container(border=True, key="card-descriptor-" + label):
             st.markdown("**{0}**".format(label))
             if st.button("Train a model", key="train_" + label, icon=":material/play_arrow:"):
-                if not os.path.exists(data_path(filename)):
-                    st.warning("Missing `data/{0}`.".format(filename))
+                result = pretrained_at(grid, label, st.session_state["cutoff"])
+                if result is None:
+                    st.warning(
+                        "No run stored for a cut-off of {0:.0f}.".format(
+                            st.session_state["cutoff"]),
+                        icon=":material/help:",
+                    )
                 else:
-                    with st.spinner("Calculating {0} and training...".format(label)):
-                        X = cached_descriptors(filename)
-                        st.session_state["features"][label] = {
-                            "preview": descriptor_preview(X), "shape": X.shape,
-                        }
-                        st.session_state["models"][label] = train_classifier(X, y)
+                    _reveal_method(label, _method_lines(label, result, grid["meta"]))
+                    st.session_state["models"][label] = result
+                    # Rerun so the marker below replaces the reveal. Without it the
+                    # status belongs to this run only, and training the second
+                    # descriptor would make the first one's disappear.
+                    st.rerun()
             if label in st.session_state["models"]:
-                feature = st.session_state["features"][label]
-                st.caption("One molecule, as {0} numbers".format(feature["shape"][1]))
-                st.code(feature["preview"], language=None)
-                aurocs = st.session_state["models"][label]["aurocs"]
+                result = st.session_state["models"][label]
+                with st.status("Trained on {0}".format(label), state="complete",
+                               expanded=False):
+                    for line in _method_lines(label, result, grid["meta"]):
+                        st.write(line)
+                aurocs = result["aurocs"]
                 st.metric("AUROC", "{0:.3f} ± {1:.3f}".format(np.mean(aurocs), np.std(aurocs)))
-                cv_data = st.session_state["models"][label]["cv_data"]
                 panes = st.columns(2, gap="small")
                 panes[0].caption("ROC, five folds")
-                panes[0].altair_chart(plot_roc(interpolate_roc_curves(cv_data)), width="stretch")
+                panes[0].altair_chart(plot_roc(result["curves"]), width="stretch")
                 panes[1].caption("Scores on one fold")
-                panes[1].altair_chart(plot_fold_scores(*cv_data[0]), width="stretch")
+                panes[1].altair_chart(plot_fold_scores(*result["fold"]), width="stretch")
 
     questions(q3, "q3")
-    models_used("train_a_model")
     if st.session_state["models"]:
         advance("step3", "screen", "Let's apply the models to a virtual screening exercise!")
+    models_used("train_a_model")
 
 
 # --- Step 4 ------------------------------------------------------------------
 
 def screen_a_library():
     heading("screen_a_library")
-    st.caption("Pick the library your group was assigned.")
+    st.caption("Select a library. There is no good or bad choice")
 
     with st.container(horizontal=True, gap="small"):
         for i, filename in enumerate(LIBRARY_FILES):
@@ -274,19 +332,38 @@ def screen_a_library():
     st.success("Screening **{0}** - {1} compounds.".format(
         st.session_state["library"].replace(".csv", "").replace("_", " ").title(), len(library)))
 
+    # A look at the library before any score exists, captioned by identifier
+    # rather than by prediction: there is nothing to rank on yet. Seeded from the
+    # file name, so the same library always shows the same faces.
+    ids = cached_rafiki_ids(RAFIKI_IDS_FILE).rename(
+        columns={"rafiki_id": RAFIKI_ID_LABEL, "smiles": LIBRARY_SMILES_COLUMN})
+    sample = library.merge(ids, on=LIBRARY_SMILES_COLUMN, how="left").sample(
+        N_SCREEN_PREVIEW,
+        random_state=zlib.crc32(st.session_state["library"].encode()) % (2 ** 32),
+    )
+    st.caption("{0} of them, picked at random.".format(N_SCREEN_PREVIEW))
+    draw_molecules_grid(
+        list(sample[LIBRARY_SMILES_COLUMN]),
+        list(sample[RAFIKI_ID_LABEL].fillna("")),
+        per_row=8, size=(170, 150),
+    )
+
+    if st.session_state.get("screened") != st.session_state["library"]:
+        if st.button("Run *Staphylococcus aureus* activity predictions",
+                     icon=":material/play_arrow:", type="primary"):
+            _run_predictions()
+            st.session_state["screened"] = st.session_state["library"]
+            st.rerun()
+        models_used("screen_a_library")
+        return
+
     ranked = library.sort_values(ACTIVITY_MODEL_COLUMN, ascending=False)
     top = ranked.head(N_TOP_HITS)
     bottom = ranked.tail(N_TOP_HITS).iloc[::-1]          # worst first
 
-    st.caption(
-        "Predicted S. aureus bioactivity across the library, ChEMBL model. The line "
-        "marks where the top {0} begins.".format(N_TOP_HITS)
-    )
+    st.caption("{0} across the library.".format(ACTIVITY_MODEL_LABEL))
     st.altair_chart(
-        plot_score_distribution(
-            library[ACTIVITY_MODEL_COLUMN], "Predicted activity",
-            marker=float(top[ACTIVITY_MODEL_COLUMN].min()),
-        ),
+        plot_score_distribution(library[ACTIVITY_MODEL_COLUMN], "Activity score"),
         width="stretch",
     )
 
@@ -301,8 +378,8 @@ def screen_a_library():
             )
 
     questions(q4, "q4")
+    advance("step4", "profiling", "Get a richer profile of molecules")
     models_used("screen_a_library")
-    advance("step4", "profiling", "See everything we know about them")
 
 
 # --- Step 5 ------------------------------------------------------------------
@@ -332,7 +409,7 @@ def the_full_picture():
     table = table.sort_values(RAFIKI_ID_LABEL)
     table = table[
         [RAFIKI_ID_LABEL, "smiles", ACTIVITY_MODEL_LABEL] + list(COLUMN_LABELS.values())
-    ]
+    ].rename(columns={"smiles": SMILES_LABEL})
     st.dataframe(table, height=430, hide_index=True)
     st.download_button(
         "Download this table", table.to_csv(index=False).encode(),
@@ -443,7 +520,8 @@ def collective_picks():
     )
 
     st.dataframe(
-        counts[[RAFIKI_ID_LABEL, "Nominations", ACTIVITY_MODEL_LABEL, "smiles"]],
+        counts[[RAFIKI_ID_LABEL, "Nominations", ACTIVITY_MODEL_LABEL, "smiles"]]
+            .rename(columns={"smiles": SMILES_LABEL}),
         height=320, hide_index=True,
     )
 
@@ -451,7 +529,7 @@ def collective_picks():
         st.dataframe(responses, hide_index=True)
 
     questions(q7, "q7")
-    advance("step6", "expand", "Let's expand one of the hits!")
+    advance("step6", "expand", "Hit identified!")
 
 
 # --- Step 6 ------------------------------------------------------------------

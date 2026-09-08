@@ -21,8 +21,22 @@ bash   scripts/02_run_featurisers.sh           # ersilia: eos4wt0, eos9o72, eos1
                                                # raw output lands in data/raw/, not versioned
 python scripts/03_pack_descriptors.py
 python scripts/04_assign_rafiki_ids.py         # RAFIKI-0001.. for every library compound
-python scripts/05_make_favicon.py              # the plum page icon
+python scripts/05_make_favicon.py              # the page icon
+python scripts/06_pretrain_models.py           # the cross-validation grid (~30 min, resumable)
 ```
+
+The Train page fits nothing. `scripts/06_pretrain_models.py` runs the five-fold
+cross-validation once for every descriptor at every whole-percent cut-off and writes
+`data/pretrained.npz`, which is what the page reads; the slider's step matches that grid, so
+every position it can reach has been trained. Fitting in the app meant six random forests over
+a 10,000 x 2048 matrix per descriptor while somebody waited, and thirty people doing that at
+once on one shared container.
+
+The script is resumable - every cell is written atomically and skipped if already present, so a
+killed run picks up where it stopped. It also keeps the fitted forests in `data/models/`, one
+per descriptor and cut-off, at about 3 MB each. Those are gitignored: the app never loads them,
+and 202 of them is roughly 660 MB. Pass `--no-models` to skip them, or `--cutoffs 9 70` for a
+quick check.
 
 `data/rafiki_ids.csv` gives each of the 5,995 compounds across the six libraries a stable
 identifier. It is committed rather than generated at runtime, so a participant's
