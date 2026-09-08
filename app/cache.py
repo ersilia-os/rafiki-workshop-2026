@@ -10,7 +10,7 @@ import streamlit as st
 
 from utils import (
     data_path, load_analogues, load_descriptors, load_library, load_projection,
-    load_training_data,
+    load_rafiki_ids, load_training_data,
 )
 
 
@@ -39,6 +39,11 @@ def _projection(filename, version):
 
 
 @st.cache_data(show_spinner=False)
+def _rafiki_ids(filename, version):
+    return load_rafiki_ids(filename)
+
+
+@st.cache_data(show_spinner=False)
 def _analogues(filename, version):
     return load_analogues(filename)
 
@@ -57,6 +62,10 @@ def cached_library(filename):
 
 def cached_projection(filename):
     return _projection(filename, data_version(filename))
+
+
+def cached_rafiki_ids(filename):
+    return _rafiki_ids(filename, data_version(filename))
 
 
 def cached_analogues(filename):

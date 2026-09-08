@@ -30,7 +30,7 @@ st.session_state.setdefault("cutoff_set", False)
 UNLOCKS = {
     "train": "cutoff_set",
     "screen": "step3",
-    "results": "step4",
+    "profiling": "step4",
     "expand": "step5",
 }
 

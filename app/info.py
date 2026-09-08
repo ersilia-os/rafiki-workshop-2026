@@ -12,7 +12,7 @@ PAGES = [
     ("data", "Data", ":material/table:", "understand_the_data"),
     ("train", "Train", ":material/model_training:", "train_a_model"),
     ("screen", "Screen", ":material/search:", "screen_a_library"),
-    ("results", "Results", ":material/list_alt:", "the_full_picture"),
+    ("profiling", "Profiling", ":material/list_alt:", "the_full_picture"),
     ("expand", "Expand", ":material/hub:", "hit_expansion"),
 ]
 
@@ -146,6 +146,12 @@ LIBRARY_FILES = [
     "library_4.csv", "library_5.csv", "library_6.csv",
 ]
 LIBRARY_SMILES_COLUMN = "input"
+
+# Stable identifiers for every compound across the six libraries, assigned once
+# by scripts/04_assign_rafiki_ids.py and committed. Not generated at runtime:
+# a participant's RAFIKI-0421 has to mean the same compound in every session.
+RAFIKI_IDS_FILE = "rafiki_ids.csv"
+RAFIKI_ID_LABEL = "RAFIKI ID"
 
 # One colour per library, from the house categorical set, so each group can be
 # pointed at "the green one" from the front of the room.

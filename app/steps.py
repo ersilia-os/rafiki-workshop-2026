@@ -7,7 +7,7 @@ import streamlit as st
 
 from cache import (
     cached_analogues, cached_descriptors, cached_library, cached_projection,
-    cached_training_data,
+    cached_rafiki_ids, cached_training_data,
 )
 from info import (
     ACTIVITY_MODEL_COLUMN, ACTIVITY_MODEL_LABEL, ANALOGUES_FILE, ANALOGUE_GENERATORS,
@@ -16,6 +16,7 @@ from info import (
     COLUMN_LABELS, CUTOFF_DEFAULT, CUTOFF_MAX, CUTOFF_MIN, CUTOFF_STEP, DESCRIPTORS,
     HIGHER_IS_ACTIVE, LIBRARY_FILES, LIBRARY_SMILES_COLUMN, N_TOP_HITS,
     PARENT_EFFLUX, PARENT_NAME, PARENT_SAUREUS, PARENT_SMILES, PROJECTION_FILE,
+    RAFIKI_IDS_FILE, RAFIKI_ID_LABEL,
     PROJECTION_X, PROJECTION_Y, READOUT_COLUMN, READOUT_LABEL, SAUREUS_THRESHOLD,
     MODELS, MODEL_HUB_URL, RESULTS_HINT, SAMPLING_CAVEAT, SMILES_COLUMN, STEP_MODELS, STEP_TEXT,
     TRAINING_FILE, ECBD_ASSAY_URL,
@@ -298,7 +299,7 @@ def screen_a_library():
 
     questions(q4, "q4")
     models_used("screen_a_library")
-    advance("step4", "results", "See everything we know about them")
+    advance("step4", "profiling", "See everything we know about them")
 
 
 # --- Step 5 ------------------------------------------------------------------
@@ -312,13 +313,24 @@ def the_full_picture():
     heading("the_full_picture")
     hint(RESULTS_HINT)
 
-    table = library.sort_values(ACTIVITY_MODEL_COLUMN, ascending=False).rename(columns={
+    table = library.rename(columns={
         LIBRARY_SMILES_COLUMN: "smiles",
         ACTIVITY_MODEL_COLUMN: ACTIVITY_MODEL_LABEL,
         **COLUMN_LABELS,
     })
-    table = table[["smiles", ACTIVITY_MODEL_LABEL] + list(COLUMN_LABELS.values())]
-    st.dataframe(table, height=430)
+    ids = cached_rafiki_ids(RAFIKI_IDS_FILE).rename(columns={"rafiki_id": RAFIKI_ID_LABEL})
+    table = table.merge(ids, on="smiles", how="left")
+
+    # Ordered by identifier, which means ordered at random with respect to every
+    # column here: scripts/04_assign_rafiki_ids.py shuffled the compounds before
+    # numbering them. Deliberately not ranked by activity - the point of this
+    # page is that activity is only the first column - and deliberately not
+    # reshuffled per run, which would reorder the table under anyone reading it.
+    table = table.sort_values(RAFIKI_ID_LABEL)
+    table = table[
+        [RAFIKI_ID_LABEL, "smiles", ACTIVITY_MODEL_LABEL] + list(COLUMN_LABELS.values())
+    ]
+    st.dataframe(table, height=430, hide_index=True)
     st.download_button(
         "Download this table", table.to_csv(index=False).encode(),
         file_name=st.session_state["library"].replace(".csv", "_predictions.csv"),

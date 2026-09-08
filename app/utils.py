@@ -70,6 +70,10 @@ def load_library(filename):
     return pd.read_csv(data_path(filename))
 
 
+def load_rafiki_ids(filename):
+    return pd.read_csv(data_path(filename))
+
+
 def load_analogues(filename):
     return pd.read_csv(data_path(filename))
 
