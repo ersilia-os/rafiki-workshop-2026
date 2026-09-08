@@ -91,14 +91,14 @@ RESPONSE_CANDIDATE_COLUMNS = ["Candidate {0}".format(i) for i in range(1, 6)]
 # form writes into, and the Collective step reads back.
 PICKS_FORM_URL = "https://forms.gle/RFuF4bn3bFZudM5G9"
 # The last thing in the workshop.
-CLOSING_TITLE = "That is the whole loop"
+CLOSING_TITLE = "Congratulations!"
 CLOSING = (
-    "You started from a plate of measurements and decided what counts as active. You "
-    "trained two models on two different ways of describing a molecule, and let one of "
-    "them rank a thousand compounds nobody in the room had screened. You looked past "
-    "activity at everything else that can stop a compound, and then asked a generative "
-    "model for better versions of a hit. That is a drug discovery cycle, in miniature - "
-    "and every model you used is free, open, and in the Ersilia Model Hub."
+    "You have been round a whole drug discovery cycle: a plate of measurements, a "
+    "decision about what counts as active, two models trained and compared, a library "
+    "nobody in the room had screened, a profile of everything besides activity, and a "
+    "generative model asked for better versions of a hit. Every model you used along "
+    "the way is free, open, and in the Ersilia Model Hub.\n\n"
+    "Don't hesitate to reach out to us at [hello@ersilia.io](mailto:hello@ersilia.io)."
 )
 
 MODEL_HUB_URL = "https://ersilia.io/model-hub"
@@ -263,6 +263,14 @@ PARENT_NAME = "Platensimycin"
 # Charlesy, Wikimedia Commons, released CC0 - no attribution required, credited
 # below the drawing anyway.
 PARENT_DRAWING_FILE = "platensimycin.svg"
+
+# The copy of platensimycin that sits in the libraries: flat, and written the
+# way data/rafiki_ids.csv writes it. Its RAFIKI identifier is looked up from
+# that table rather than written down here, so renumbering the compounds cannot
+# leave a stale one behind.
+PARENT_LIBRARY_SMILES = (
+    "CC12CC34C=CC(=O)C(C)(CCC(=O)Nc5c(O)ccc(C(=O)O)c5O)C3C(CC1C4)O2"
+)
 PARENT_DRAWING_CREDIT = (
     "Skeletal formula by Charlesy, "
     "[Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Platensimycin_skeletal.svg), "
@@ -328,11 +336,17 @@ EFFLUX_BLURB = (
     "efflux evasion."
 )
 
-# Gram-negative activity, with each model's own recommended threshold.
+# Gram-negative activity: the model, and what platensimycin scores on it. Each
+# model publishes a recommended threshold as well; the plots do not draw it,
+# because the parent's own score is the comparison the room can act on.
 GRAM_NEGATIVE = [
-    ("E. coli", "ch_ecoli", 0.855, 0.636, "eos5eya"),
-    ("K. pneumoniae", "ch_kpneumoniae", 0.837, 0.611, "eos6wb7"),
+    ("E. coli", "ch_ecoli", 0.636, "eos5eya"),
+    ("K. pneumoniae", "ch_kpneumoniae", 0.611, "eos6wb7"),
 ]
+GRAM_NEGATIVE_BLURB = (
+    "Evading efflux is necessary, not sufficient. Let's predict activity against "
+    "*E. coli* and *K. pneumoniae* using the Ersilia Model Hub."
+)
 
 N_GENERATOR_EXAMPLES = 10
 
@@ -382,9 +396,6 @@ q7 = [
 ]
 
 q6 = [
-    "- CReM and LibInvent were given different inputs. Look at what that did.",
-    "- Was this a real scaffold hopping exercise?",
-    "- The diamond is platensimycin. Which quadrant do you want to be in?",
-    "- Analogues that gain permeability without losing potency: would you make them?",
-    "- Nothing here clears the E. coli threshold. What is that telling you?",
+    "- How many analogues would you prioritise?",
+    "- What do we need to know about analogues before proceeding?",
 ]

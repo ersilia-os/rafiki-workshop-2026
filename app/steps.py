@@ -16,8 +16,8 @@ from cache import (
 from info import (
     ACTIVITY_MODEL_COLUMN, ACTIVITY_MODEL_LABEL, ANALOGUES_FILE, ANALOGUE_GENERATORS,
     ANALOGUE_X, ANALOGUE_Y, EFFLUX_BLURB, EFFLUX_MODEL, GENERATORS,
-    GRAM_NEGATIVE, N_GENERATOR_EXAMPLES, PARENT_BLURB,
-    PARENT_DRAWING_CREDIT, PARENT_DRAWING_FILE,
+    GRAM_NEGATIVE, GRAM_NEGATIVE_BLURB, N_GENERATOR_EXAMPLES, PARENT_BLURB,
+    PARENT_DRAWING_CREDIT, PARENT_DRAWING_FILE, PARENT_LIBRARY_SMILES,
     COLUMN_LABELS, CUTOFF_DEFAULT, CUTOFF_MAX, CUTOFF_MIN, CUTOFF_STEP, DESCRIPTORS,
     HIGHER_IS_ACTIVE, LIBRARY_FILES, LIBRARY_SMILES_COLUMN, N_TOP_HITS,
     CLOSING, CLOSING_TITLE, FORM_RESPONSES_URL, PICKS_FORM_URL,
@@ -141,15 +141,22 @@ def _tidy_float(value):
     return "" if np.isnan(value) else "{:g}".format(round(float(value), 4))
 
 
-def _progress(label):
+def _progress(label, clear=True):
     """A model running over a set of compounds, at a pace a room can follow.
-    The scores themselves are columns the file already carries."""
+    The scores themselves are columns the file already carries.
+
+    clear=False leaves the finished bar on screen, so two models run one after
+    the other read as two runs rather than one bar that restarts.
+    """
     bar = st.progress(0.0, text=label)
     ticks = 20
     for i in range(ticks):
         time.sleep(SCREENING_SECONDS / ticks)
-        bar.progress((i + 1) / ticks)
-    bar.empty()
+        # The text has to be repeated: an update without it replaces the
+        # element with an unlabelled bar.
+        bar.progress((i + 1) / ticks, text=label)
+    if clear:
+        bar.empty()
 
 
 def _run_predictions():
@@ -642,10 +649,25 @@ def collective_picks():
         )
 
     questions(q7, "q7")
-    advance("step6", "expand", "Hit identified!")
+    # The badge names the compound the next page is about, in the same green as
+    # the cut-off badge on the Data page. It appears once the step is taken,
+    # which is when the room has agreed on the hit.
+    with st.container(horizontal=True, wrap=False, vertical_alignment="center"):
+        advance("step6", "expand", "Hit identified!")
+        hit = _parent_rafiki_id()
+        if hit is not None and st.session_state.get("step6"):
+            st.badge(hit, color="green", icon=":material/check_circle:")
 
 
 # --- Step 6 ------------------------------------------------------------------
+
+def _parent_rafiki_id():
+    """Platensimycin's identifier, looked up in the table rather than written
+    down. None if the table no longer holds it, so the badge simply goes."""
+    ids = cached_rafiki_ids(RAFIKI_IDS_FILE)
+    match = ids[ids["smiles"] == PARENT_LIBRARY_SMILES]
+    return None if match.empty else match.iloc[0]["rafiki_id"]
+
 
 def _parent_drawing():
     """The hand-drawn skeletal formula, as SVG text. st.image renders an SVG
@@ -667,7 +689,7 @@ def hit_expansion():
     analogues = analogues[analogues["generator"].isin(ANALOGUE_GENERATORS)]
 
     # 1. The hit ---------------------------------------------------------------
-    cols = st.columns([0.38, 0.62], gap="medium")
+    cols = st.columns([0.32, 0.68], gap="medium")
     with cols[0].container(border=True, key="card-parent"):
         # Two views of one molecule: the drawn formula reads better on a
         # projector, the computed one is what every other structure here is.
@@ -763,24 +785,29 @@ def hit_expansion():
 
     # 4. Gram-negative activity ------------------------------------------------
     st.divider()
-    st.subheader("Did any of it buy Gram-negative activity?")
-    st.markdown(
-        "Evading efflux is necessary, not sufficient. These two models predict growth "
-        "inhibition directly, each with its own recommended threshold. Platensimycin "
-        "fails both."
-    )
-    cols = st.columns(len(GRAM_NEGATIVE), gap="medium")
-    for col, (name, column, threshold, parent, model) in zip(cols, GRAM_NEGATIVE):
-        clearing = int((analogues[column] >= threshold).sum())
-        with col.container(border=True, key="card-gramneg-" + name):
-            st.markdown("**{0}**  `{1}`".format(name, model))
-            st.caption("Threshold {0}. Platensimycin scores {1}.".format(threshold, parent))
-            st.altair_chart(
-                plot_score_distribution(analogues[column], "Predicted activity",
-                                        marker=threshold),
-                width="stretch",
-            )
-            st.metric("Analogues clearing the threshold", clearing)
+    st.subheader("Can we predict Gram-negative activity?")
+    st.markdown(GRAM_NEGATIVE_BLURB)
+
+    if not st.session_state.get("gramneg_run"):
+        if st.button("Run both models", type="primary",
+                     icon=":material/play_arrow:", key="button_gramneg"):
+            for name, _, _, model in GRAM_NEGATIVE:
+                _progress("{0} · {1}".format(model, name), clear=False)
+            st.session_state["gramneg_run"] = True
+            st.rerun()
+    else:
+        cols = st.columns(len(GRAM_NEGATIVE), gap="medium")
+        for col, (name, column, parent, model) in zip(cols, GRAM_NEGATIVE):
+            with col.container(border=True, key="card-gramneg-" + name):
+                st.markdown("**{0}**  `{1}`".format(name, model))
+                st.caption("The line is {0}, at {1}.".format(PARENT_NAME.lower(), parent))
+                st.altair_chart(
+                    plot_score_distribution(analogues[column], "Predicted activity",
+                                            marker=parent),
+                    width="stretch",
+                )
+                st.metric("Analogues above {0}".format(PARENT_NAME),
+                          int((analogues[column] > parent).sum()))
 
     questions(q6, "q6")
     models_used("hit_expansion")
