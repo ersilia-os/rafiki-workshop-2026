@@ -20,8 +20,15 @@ python scripts/01_prepare_saureus_dataset.py   # needs the eu-openscreen repo al
 bash   scripts/02_run_featurisers.sh           # ersilia: eos4wt0, eos9o72, eos1klk (~20 min)
                                                # raw output lands in data/raw/, not versioned
 python scripts/03_pack_descriptors.py
-python scripts/05_make_favicon.py             # the plum page icon
+python scripts/04_assign_rafiki_ids.py         # RAFIKI-0001.. for every library compound
+python scripts/05_make_favicon.py              # the plum page icon
 ```
+
+`data/rafiki_ids.csv` gives each of the 5,995 compounds across the six libraries a stable
+identifier. It is committed rather than generated at runtime, so a participant's
+`RAFIKI-0421` means the same compound in every session. The union is 5,995 and not 6,000
+because platensimycin is in all six libraries - as its flat form, with no stereochemistry,
+so it does not match `PARENT_SMILES` as a string.
 
 `data/analogues_master.csv` (1,062 platensimycin analogues from five generative models, already
 scored) comes from a separate analysis and is not rebuilt by these scripts. Column meanings are
