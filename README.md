@@ -19,7 +19,7 @@ python scripts/01_prepare_saureus_dataset.py   # needs the eu-openscreen repo al
 bash   scripts/02_run_featurisers.sh           # ersilia: eos4wt0, eos9o72, eos1klk (~20 min)
                                                # raw output lands in data/raw/, not versioned
 python scripts/03_pack_descriptors.py
-python scripts/04_make_group_inputs.py         # needs data/library_*.csv
+python scripts/05_make_favicon.py             # the plum page icon
 ```
 
 `data/analogues_master.csv` (1,062 platensimycin analogues from five generative models, already

@@ -9,6 +9,7 @@ sys.path.append(root)
 from info import (
     ORGANISATION, PAGES, READOUT_COLUMN, SMILES_COLUMN, TITLE, TRAINING_FILE, intro,
 )
+from style import CSS
 from utils import data_path
 import steps
 
@@ -23,33 +24,50 @@ st.session_state.setdefault("features", {})
 st.session_state.setdefault("models", {})
 st.session_state.setdefault("predictions", {})
 st.session_state.setdefault("cutoff", None)
+st.session_state.setdefault("cutoff_set", False)
 
 # A page becomes reachable once the step before it has been completed.
 UNLOCKS = {
-    "cutoff": "step1",
-    "train": "step1",
+    "train": "cutoff_set",
     "screen": "step3",
     "results": "step4",
     "expand": "step5",
 }
 
 
+# Set RAFIKI_UNLOCK_ALL=1 to reach every page without walking the workshop.
+# Off by default, so a deployed app still gates the steps in order.
+UNLOCK_ALL = os.environ.get("RAFIKI_UNLOCK_ALL") == "1"
+
+
 def available(url_path):
+    if UNLOCK_ALL:
+        return True
     key = UNLOCKS.get(url_path)
     return key is None or bool(st.session_state.get(key))
 
 
-def render(step):
-    """Every page shares the same eyebrow, then runs its own step."""
-    st.caption("{0} · {1}".format(TITLE, ORGANISATION))
+def render(spec, number):
+    """Shared header, then the step itself.
+
+    The badge repeats what the nav already says. That is deliberate: the tab
+    styling leans on Streamlit's own class names, and this does not.
+    """
+    _, title, _, step = spec
+    st.html(CSS)
+    with st.container(key="eyebrow", horizontal=True, vertical_alignment="center"):
+        st.badge("Step {0} of {1} · {2}".format(number, len(PAGES), title), color="violet")
+        st.caption("{0} · {1}".format(TITLE, ORGANISATION))
+        if UNLOCK_ALL:
+            st.badge("all steps unlocked", color="orange", icon=":material/lock_open:")
     getattr(steps, step)()
 
 
-def page(spec):
-    url_path, title, icon, step = spec
+def page(spec, number):
+    url_path, title, icon, _ = spec
     return st.Page(
-        lambda step=step: render(step), title=title, icon=icon, url_path=url_path,
-        default=url_path == PAGES[0][0],
+        lambda spec=spec, number=number: render(spec, number),
+        title=title, icon=icon, url_path=url_path, default=url_path == PAGES[0][0],
     )
 
 
@@ -74,4 +92,7 @@ if not os.path.exists(data_path(TRAINING_FILE)):
     )
     st.stop()
 
-st.navigation([page(spec) for spec in PAGES if available(spec[0])], position="top").run()
+st.navigation(
+    [page(spec, i + 1) for i, spec in enumerate(PAGES) if available(spec[0])],
+    position="top",
+).run()

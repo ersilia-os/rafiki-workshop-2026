@@ -221,3 +221,6 @@ __marimo__/
 # the ~190 MB of intermediates are not worth versioning.
 data/raw/
 data/.placeholder
+
+# macOS
+.DS_Store

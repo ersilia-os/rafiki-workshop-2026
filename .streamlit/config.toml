@@ -6,7 +6,7 @@ base = "light"
 backgroundColor = "#FAFAFC"
 secondaryBackgroundColor = "#F4F4F8"
 textColor = "#2C3E50"
-primaryColor = "#6C5CE7"
+primaryColor = "#50285A"   # plum: buttons and sliders. Periwinkle read too hot.
 linkColor = "#6C5CE7"
 linkUnderline = false
 borderColor = "#E6E6EE"
@@ -27,7 +27,19 @@ dataframeBorderColor = "#E6E6EE"
 
 # Brand hues snapped for legibility; red sits in slot 6 by design.
 chartCategoricalColors = ["#6d5de7", "#e2a72e", "#247dad", "#6cbf5a", "#af5cc7", "#e63745"]
-chartSequentialColors = ["#b2b4d7", "#9495d1", "#7876ca", "#5f55c2", "#492eb8"]
+# Streamlit requires exactly 10 stops; interpolated from the design system's 5.
+chartSequentialColors = [
+    "#b2b4d7",
+    "#a5a6d4",
+    "#9798d2",
+    "#8b8bcf",
+    "#7e7dcc",
+    "#726fc8",
+    "#6760c5",
+    "#5d51c1",
+    "#533fbc",
+    "#492eb8",
+]
 
 greenColor = "#3F9D6B"
 orangeColor = "#C98A1E"

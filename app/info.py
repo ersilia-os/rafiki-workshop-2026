@@ -8,7 +8,6 @@ ORGANISATION = "Ersilia Open Source Initiative"
 # The top navigation: url_path, tab label, icon, and the function in steps.py.
 PAGES = [
     ("data", "Data", ":material/table:", "understand_the_data"),
-    ("cutoff", "Cut-off", ":material/content_cut:", "choose_a_cutoff"),
     ("train", "Train", ":material/model_training:", "train_a_model"),
     ("screen", "Screen", ":material/search:", "screen_a_library"),
     ("results", "Results", ":material/list_alt:", "the_full_picture"),
@@ -23,12 +22,79 @@ about = [
 ]
 
 intro = """
-Your collaborators have screened a compound library against _Staphylococcus aureus_ ATCC 29213 and
-handed you the raw numbers. Each compound was tested once at 50 uM, in duplicate, and the result is
-reported as **mean % growth inhibition**: 100% means the bacteria did not grow at all, 0% means they
-grew as well as in an untreated well. Your job today is to turn these measurements into a machine
-learning model that can flag promising compounds in libraries you have not screened.
+Public screening data from EU OpenScreen: a compound library tested against
+_Staphylococcus aureus_ ATCC 29213 at 50 uM, in duplicate. The readout is
+**mean % growth inhibition** - 100% means the bacteria did not grow at all, 0% means
+they grew as well as in an untreated well. Over six steps you will turn these
+measurements into a model that can flag promising compounds in libraries nobody
+has screened.
 """.strip()
+
+# --- Page text ---------------------------------------------------------------
+# Heading and standfirst for each page, keyed by its function in steps.py.
+STEP_TEXT = {
+    "understand_the_data": (
+        "European Chemical Biology Database",
+        "We have downloaded the available data from the ECBD related to the *S. aureus* "
+        "screening from EU OpenScreen. Read their information to understand what we are "
+        "looking at.",
+    ),
+    "choose_a_cutoff": ("Where does active begin?", ""),
+    "train_a_model": ("Two ways to describe a molecule", ""),
+    "screen_a_library": ("A thousand compounds you have never seen", ""),
+    "the_full_picture": ("Activity is only the first column", ""),
+    "hit_expansion": ("Can you beat the natural product?", ""),
+}
+
+SAMPLING_CAVEAT = (
+    "Every active was kept and the inactives were downsampled to reach 10,000 compounds, "
+    "so the hit rate you see here is about ten times higher than in the original screen. "
+    "It is a teaching set, not a basis for any claim about how often a screen hits."
+)
+
+MODEL_HUB_URL = "https://ersilia.io/model-hub"
+
+# Every Ersilia model behind a number in this app. Titles are the models' own.
+MODELS = {
+    "eos1klk": "2D projector trained on the Ersilia reference library",
+    "eos4wt0": "Morgan fingerprints, binary, radius 3, 2048 bits",
+    "eos9o72": "CheMeleon embeddings",
+    "eos8lcw": "Antimicrobial activity against S. aureus, from ChEMBL and PubChem",
+    "eos42ez": "Human cytotoxicity endpoints",
+    "eos7m30": "ADMET properties prediction (hERG endpoint)",
+    "eos9ei3": "Synthetic accessibility score",
+    "eos9yui": "Natural product likeness score",
+    "eos2xeq": "Antibiotic downselection, similarity to known antibiotics",
+    "eos4djh": "Basic molecular descriptors from Datamol",
+    "eos3lyd": "Efflux pump avoidance in gram-negative bacteria",
+    "eos5eya": "Antimicrobial activity against E. coli, from ChEMBL and PubChem",
+    "eos6wb7": "Antimicrobial activity against K. pneumoniae, from ChEMBL and PubChem",
+    "eos4q1a": "CReM fragment based structure generation",
+    "eos6ost": "REINVENT 4 LibInvent",
+    "eos84nf": "GenMol scaffold decoration",
+    "eos694w": "REINVENT 4 Mol2Mol medium similarity",
+    "eos57bx": "REINVENT 4 Mol2Mol scaffold",
+}
+
+# Which of them produced the numbers on each page.
+STEP_MODELS = {
+    "understand_the_data": ["eos1klk"],
+    "train_a_model": ["eos4wt0", "eos9o72"],
+    "screen_a_library": ["eos8lcw"],
+    "the_full_picture": ["eos8lcw", "eos42ez", "eos7m30", "eos9ei3", "eos9yui",
+                         "eos2xeq", "eos4djh"],
+    "hit_expansion": ["eos4q1a", "eos6ost", "eos8lcw", "eos3lyd", "eos5eya", "eos6wb7"],
+}
+
+RESULTS_HINT = (
+    "It will help you to focus on only two or three endpoints at the beginning. Try to "
+    "understand what the numbers mean - is it a probability, a predicted experimental "
+    "value, a score? - and whether we want higher or lower numbers in a hit (high "
+    "bioactivity and low cytotoxicity, for instance). The article behind every model is "
+    "linked from the GitBook documentation."
+)
+
+ECBD_ASSAY_URL = "https://ecbd.eu/assays/EOS300078"
 
 # --- Training data -----------------------------------------------------------
 # CSV in data/, built by scripts/01_prepare_saureus_dataset.py.
@@ -42,7 +108,9 @@ READOUT_LABEL = "Growth inhibition (%)"
 HIGHER_IS_ACTIVE = True
 
 # Slider bounds for the activity cut-off, in the units of READOUT_COLUMN.
-CUTOFF_MIN, CUTOFF_MAX, CUTOFF_DEFAULT, CUTOFF_STEP = 0.0, 100.0, 50.0, 0.5
+# CUTOFF_DEFAULT = None starts the slider at the mean of the readout.
+CUTOFF_MIN, CUTOFF_MAX, CUTOFF_STEP = 0.0, 100.0, 0.5
+CUTOFF_DEFAULT = None
 
 # --- Precomputed featurisations ---------------------------------------------
 # One compressed .npz per descriptor, in data/, rows in the same order as
@@ -56,7 +124,7 @@ DESCRIPTORS = {
 # 2D projection onto Ersilia's reference chemical space (eos1klk). Small enough
 # to stay a CSV; columns are pca_x/y, tmap_x/y, tsne_x/y, umap_x/y.
 PROJECTION_FILE = "saureus_eos1klk.csv"
-PROJECTION_X, PROJECTION_Y = "umap_x", "umap_y"
+PROJECTION_X, PROJECTION_Y = "tsne_x", "tsne_y"
 
 # --- Screening libraries -----------------------------------------------------
 # Each group is handed a SMILES file matching one of these. Predictions are
@@ -67,17 +135,17 @@ LIBRARY_FILES = [
 ]
 LIBRARY_SMILES_COLUMN = "input"
 
-# Handout files written by scripts/04_make_group_inputs.py. The app offers
-# one for download so the upload step can be demoed without a local file.
-EXAMPLE_INPUT = os.path.join("group_inputs", "group_1.csv")
+# One colour per library, from the house categorical set, so each group can be
+# pointed at "the green one" from the front of the room.
+LIBRARY_COLOURS = ["#6d5de7", "#e2a72e", "#247dad", "#6cbf5a", "#af5cc7", "#e63745"]
+
 
 # The two S. aureus activity predictions shown first.
-# ChEMBL first: it is the ranking column. eos3f8h saturates (it scores almost
-# everything above 0.99), so it is shown for contrast but never used to rank.
-ACTIVITY_MODELS = {
-    "ChEMBL model": "eos8lcw_consensus_score",
-    "EU-OpenScreen model": "eos3f8h_saureus",
-}
+# One bioactivity model, to keep the screening step short. eos3f8h is the other
+# S. aureus model in these files; it saturates (almost everything scores above
+# 0.99), so ChEMBL is the one worth showing.
+ACTIVITY_MODEL_LABEL = "S. aureus bioactivity"
+ACTIVITY_MODEL_COLUMN = "eos8lcw_consensus_score"
 
 # The rest of the array, shown in the final downloadable table.
 COLUMN_LABELS = {
@@ -101,11 +169,69 @@ N_TOP_HITS = 16
 # from five generative models, already scored.
 ANALOGUES_FILE = "analogues_master.csv"
 PARENT_NAME = "Platensimycin"
-PARENT_SMILES = "CC12CC34C=CC(=O)C(C)(CCC(=O)Nc5c(O)ccc(C(=O)O)c5O)C3C(CC1C4)O2"
+
+# The real, stereo-defined natural product: the input the generators were given.
+# The copy inside the libraries is flat, which is why it scores 0.825 not 0.830.
+PARENT_SMILES = (
+    "C[C@]12C[C@]34C[C@H]1C[C@@H]([C@H]3[C@](C(=O)C=C4)(C)CCC(=O)"
+    "NC5=C(C=CC(=C5O)C(=O)O)O)O2"
+)
+
+# Only these two generators are shown. CReM is the one that keeps the
+# stereochemistry and the parent's size; LibInvent shows what a scaffold
+# decorator does. GenMol and mol2mol are in the file but out of the workshop.
+ANALOGUE_GENERATORS = ["CReM", "LibInvent"]
+
+GENERATORS = [
+    {
+        "name": "CReM",
+        "model": "eos4q1a",
+        "input_label": "Input: the whole molecule",
+        "input_smiles": PARENT_SMILES,
+        "text": "Swaps small fragments for alternatives seen in real molecules, leaving "
+                "the rest untouched. The only generator here that keeps all six "
+                "stereocentres and stays near the parent's weight.",
+    },
+    {
+        "name": "LibInvent",
+        "model": "eos6ost",
+        "input_label": "Input: a scaffold with one attachment point",
+        "input_smiles": (
+            "C[C@]12C[C@@]34C=CC(=O)[C@@](C)(CCC(=O)Nc5c(O)c([*])cc(C(=O)O)c5O)"
+            "[C@@H]3[C@H](C[C@@H]1C4)O2"
+        ),
+        "text": "Grows substituents at the position marked [*] and freezes everything "
+                "else. Run on the bare molecule instead, it strips the benzoic-acid head "
+                "- and the activity goes with it.",
+    },
+]
 
 # Reference values for the stereo-defined natural product.
 PARENT_SAUREUS, PARENT_EFFLUX = 0.830, 0.492
 SAUREUS_THRESHOLD = 0.791
+
+PARENT_BLURB = (
+    "Platensimycin is a known FabF inhibitor of natural origin, active against "
+    "Gram-positives but effluxed in Gram-negatives. It was identified by Merck "
+    "([Wang et al., *Nature*, 2006](https://www.nature.com/articles/nature04784))."
+)
+
+EFFLUX_BLURB = (
+    "A Gram-negative cell pumps most small molecules straight back out. "
+    "`eos3lyd` was trained on Co-ADD data for 73,000 compounds screened against "
+    "wild-type *E. coli* alongside efflux-deficient and hyperpermeable strains: "
+    "comparing the strains says whether a compound was kept out or pumped out. "
+    "The model returns the probability that a molecule **evades** efflux, so higher "
+    "is better. Platensimycin scores {0}."
+)
+
+# Gram-negative activity, with each model's own recommended threshold.
+GRAM_NEGATIVE = [
+    ("E. coli", "ch_ecoli", 0.855, 0.636, "eos5eya"),
+    ("K. pneumoniae", "ch_kpneumoniae", 0.837, 0.611, "eos6wb7"),
+]
+
+N_GENERATOR_EXAMPLES = 10
 
 ANALOGUE_X, ANALOGUE_Y = "ch_saureus", "efflux_evader_proba"
 ANALOGUE_SHORTLIST = "on_pareto_shortlist"
@@ -116,7 +242,7 @@ q1 = [
     "- What exactly was measured, and in what units?",
     "- Do we want higher or lower values?",
     "- Some values are negative, and some are above 100. How can that be?",
-    "- What information would you ask your collaborators for that is missing here?",
+    "- Is there any other information you'd like to ask collaborators about this data?",
 ]
 
 q2 = [
@@ -124,36 +250,33 @@ q2 = [
     "- What do 0 and 1 mean once we binarise?",
     "- Where does the cut-off sit on the histogram, and what does the tail contain?",
     "- The depositors called a compound active at 70% inhibition. Would you?",
-    "- Is this dataset balanced? Careful: all the actives were kept and the",
-    "  inactives were downsampled, so the hit rate you see here is about ten",
-    "  times higher than in the original screen.",
+    "- Is this dataset balanced?",
 ]
 
 q3 = [
-    "- What does a Morgan fingerprint encode? And a learned embedding?",
-    "- One is a fixed rule, the other was trained. Does that matter here?",
     "- Look at the two example rows: what is actually being fed to the model?",
+    "- What does a Morgan fingerprint encode? And a learned embedding?",
     "- What is a cross-validation experiment, and why do we need one?",
     "- Which descriptor performs better? Is the difference meaningful?",
     "- Would a different cut-off change the ranking?",
 ]
 
 q4 = [
-    "- The two models were trained on different data. Do they agree?",
-    "- Which compounds would you take forward, and on whose prediction?",
     "- What does a score of 0.9 actually mean here?",
+    "- Which would be a good bioactivity cut-off?",
+    "- What else would help us make a decision of which molecules to test?",
 ]
 
 q5 = [
     "- Activity is not enough. What else in this table would stop you?",
     "- A compound is predicted active but flags PAINS. What now?",
-    "- You can synthesise 50 compounds. Which 50, and why?",
+    "- You can synthesise 5 compounds, which ones and why?",
 ]
 
 q6 = [
-    "- The red diamond is platensimycin. Which quadrant do you want to be in?",
-    "- 135 analogues gain permeability without losing potency. Would you make them?",
-    "- Among these, potency and efflux evasion pull against each other. Why?",
-    "- Not one of the 1062 clears the E. coli threshold. What is that telling you?",
-    "- What would you need to measure to do better than this?",
+    "- CReM and LibInvent were given different inputs. Look at what that did.",
+    "- Was this a real scaffold hopping exercise?",
+    "- The diamond is platensimycin. Which quadrant do you want to be in?",
+    "- Analogues that gain permeability without losing potency: would you make them?",
+    "- Nothing here clears the E. coli threshold. What is that telling you?",
 ]

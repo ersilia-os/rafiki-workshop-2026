@@ -56,30 +56,6 @@ def load_analogues(filename):
     return pd.read_csv(data_path(filename))
 
 
-def read_uploaded_smiles(uploaded_file):
-    """SMILES out of whatever the group drops in, with or without a header."""
-    df = pd.read_csv(uploaded_file)
-    for name in ("smiles", "SMILES", "input", "Smiles"):
-        if name in df.columns:
-            return list(df[name].dropna())
-    column = df.columns[0]
-    smiles = list(df[column].dropna())
-    if Chem.MolFromSmiles(str(column)) is not None:
-        smiles = [column] + smiles          # the header was itself a molecule
-    return smiles
-
-
-def match_library(smiles_list, library_files, smiles_column):
-    """Which of the prepared libraries did they upload? Returns (name, n_matched)."""
-    query = set(smiles_list)
-    best, best_overlap = None, 0
-    for filename in library_files:
-        overlap = len(query & set(load_library(filename)[smiles_column]))
-        if overlap > best_overlap:
-            best, best_overlap = filename, overlap
-    return best, best_overlap
-
-
 def reduce_dimensions(X, y, n_components=100):
     n_components = min(n_components, X.shape[1])
     reducer = LOL(n_components=n_components)
@@ -118,7 +94,16 @@ def interpolate_roc_curves(cv_data, n_points=100):
 
 
 def draw_molecule(smiles, size=(200, 200)):
-    return Draw.MolToImage(Chem.MolFromSmiles(smiles), size=size)
+    """Draw a molecule. Any attachment point is picked out, since a bare `*` is
+    easy to miss and it is the whole point of a scaffold."""
+    mol = Chem.MolFromSmiles(smiles)
+    dummies = [a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == 0]
+    if not dummies:
+        return Draw.MolToImage(mol, size=size)
+    return Draw.MolToImage(
+        mol, size=size, highlightAtoms=dummies,
+        highlightColor=(0.902, 0.216, 0.271),      # #e63745
+    )
 
 
 def draw_molecules_grid(smiles_list, legends, per_row=4, size=(260, 220)):

@@ -3,7 +3,6 @@
 import os
 
 import numpy as np
-import pandas as pd
 import streamlit as st
 
 from cache import (
@@ -11,26 +10,66 @@ from cache import (
     cached_training_data,
 )
 from info import (
-    ACTIVITY_MODELS, ANALOGUES_FILE, ANALOGUE_SHORTLIST, ANALOGUE_X, ANALOGUE_Y,
+    ACTIVITY_MODEL_COLUMN, ACTIVITY_MODEL_LABEL, ANALOGUES_FILE, ANALOGUE_GENERATORS,
+    ANALOGUE_SHORTLIST, ANALOGUE_X, ANALOGUE_Y, EFFLUX_BLURB, GENERATORS,
+    GRAM_NEGATIVE, N_GENERATOR_EXAMPLES, PARENT_BLURB,
     COLUMN_LABELS, CUTOFF_DEFAULT, CUTOFF_MAX, CUTOFF_MIN, CUTOFF_STEP, DESCRIPTORS,
-    EXAMPLE_INPUT, HIGHER_IS_ACTIVE, LIBRARY_FILES, LIBRARY_SMILES_COLUMN, N_TOP_HITS,
+    HIGHER_IS_ACTIVE, LIBRARY_FILES, LIBRARY_SMILES_COLUMN, N_TOP_HITS,
     PARENT_EFFLUX, PARENT_NAME, PARENT_SAUREUS, PARENT_SMILES, PROJECTION_FILE,
     PROJECTION_X, PROJECTION_Y, READOUT_COLUMN, READOUT_LABEL, SAUREUS_THRESHOLD,
-    SMILES_COLUMN, TRAINING_FILE, q1, q2, q3, q4, q5, q6,
+    MODELS, MODEL_HUB_URL, RESULTS_HINT, SAMPLING_CAVEAT, SMILES_COLUMN, STEP_MODELS, STEP_TEXT,
+    TRAINING_FILE, ECBD_ASSAY_URL,
+    q1, q2, q3, q4, q5, q6,
 )
 from plots import (
-    plot_chemical_space, plot_model_agreement, plot_pareto, plot_readout_histogram, plot_roc,
+    plot_chemical_space, plot_fold_scores, plot_pareto, plot_readout_histogram, plot_roc,
+    plot_score_distribution,
 )
 from utils import (
     binarize, data_path, descriptor_preview, draw_molecule, draw_molecules_grid,
-    interpolate_roc_curves, match_library, read_uploaded_smiles, reduce_dimensions,
-    train_classifier,
+    interpolate_roc_curves, reduce_dimensions, train_classifier,
 )
 
 
-def questions(items):
-    """Discussion prompts: quiet, bordered, always readable."""
-    with st.container(border=True):
+def heading(step):
+    """Page heading and standfirst, both editable in info.py."""
+    title, body = STEP_TEXT[step]
+    st.subheader(title)
+    if body:
+        st.markdown(body)
+
+
+def models_used(step):
+    """Name the Ersilia models behind this page, and point at the catalogue."""
+    listed = "  \n".join(
+        "- [`{0}`](https://github.com/ersilia-os/{0}) - {1}".format(i, MODELS[i])
+        for i in STEP_MODELS[step]
+    )
+    with st.expander("Models used on this page", icon=":material/deployed_code:"):
+        st.markdown(listed)
+        st.caption(
+            "There are over 250 models like these, free to browse and run, in the "
+            "[Ersilia Model Hub]({0}).".format(MODEL_HUB_URL)
+        )
+
+
+def hint(text):
+    """Guidance on how to read a page. Not a caveat, not a question."""
+    with st.container(border=True, key="hint", horizontal=True, vertical_alignment="top"):
+        st.markdown(":material/lightbulb:")
+        st.markdown(text)
+
+
+def careful(text):
+    """A caveat about the data. Deliberately not the questions box."""
+    with st.container(border=True, key="careful", horizontal=True, vertical_alignment="top"):
+        st.markdown(":material/priority_high:")
+        st.markdown("**Careful.** " + text)
+
+
+def questions(items, key):
+    """Discussion prompts. style.py tints any container keyed `talk-*` mint."""
+    with st.container(border=True, key="talk-" + key):
         st.caption("Talk it through")
         st.markdown("\n".join(items))
 
@@ -42,13 +81,16 @@ def advance(key, label, icon=":material/arrow_forward:"):
     return st.session_state[key]
 
 
-def labels():
-    """The two activity models, in ranking order."""
-    return list(ACTIVITY_MODELS.items())
-
-
 def training_data():
     return cached_training_data(TRAINING_FILE)
+
+
+def default_cutoff(values):
+    """Where the slider starts. The mean, unless info.py pins a value."""
+    if CUTOFF_DEFAULT is not None:
+        return float(CUTOFF_DEFAULT)
+    mean = round(values.mean() / CUTOFF_STEP) * CUTOFF_STEP
+    return float(min(max(mean, CUTOFF_MIN), CUTOFF_MAX))
 
 
 def binary_labels():
@@ -59,26 +101,33 @@ def binary_labels():
 
 def understand_the_data():
     df = training_data()
-    st.subheader("What your collaborators handed you")
+    heading("understand_the_data")
+    st.link_button(
+        "Open the assay record on ECBD", ECBD_ASSAY_URL, icon=":material/open_in_new:"
+    )
     cols = st.columns([2, 1], gap="medium")
     cols[0].dataframe(df[[SMILES_COLUMN, READOUT_COLUMN]], height=460)
     with cols[1]:
-        questions(q1)
-    advance("step1", "I have read the data")
+        questions(q1, "q1")
+
+    st.divider()
+    choose_a_cutoff()
+    models_used("understand_the_data")
 
 
 # --- Step 2 ------------------------------------------------------------------
 
 def choose_a_cutoff():
     df = training_data()
-    st.subheader("Where does active begin?")
+    heading("choose_a_cutoff")
 
     with st.container(border=True):
         cols = st.columns(5, vertical_alignment="center")
         cols[0].metric("Mean", round(df[READOUT_COLUMN].mean(), 2))
         cols[1].metric("Std deviation", round(df[READOUT_COLUMN].std(), 2))
         cutoff = cols[2].slider(
-            "Activity cut-off", CUTOFF_MIN, CUTOFF_MAX, CUTOFF_DEFAULT, CUTOFF_STEP, format="%.1f"
+            "Activity cut-off", CUTOFF_MIN, CUTOFF_MAX,
+            default_cutoff(df[READOUT_COLUMN]), CUTOFF_STEP, format="%.1f",
         )
         dt = binarize(df, cutoff, HIGHER_IS_ACTIVE)
         cols[3].metric("Actives", int(dt["Binary"].sum()))
@@ -89,7 +138,7 @@ def choose_a_cutoff():
     cols[0].altair_chart(
         plot_readout_histogram(dt, READOUT_COLUMN, cutoff, READOUT_LABEL), width="stretch"
     )
-    cols[1].caption("The library in Ersilia's reference chemical space")
+    cols[1].caption("t-SNE projection onto Ersilia's reference chemical space")
     if os.path.exists(data_path(PROJECTION_FILE)):
         cols[1].altair_chart(
             plot_chemical_space(
@@ -100,7 +149,8 @@ def choose_a_cutoff():
     else:
         cols[1].warning("Missing `data/{0}`.".format(PROJECTION_FILE))
 
-    questions(q2)
+    questions(q2, "q2")
+    careful(SAMPLING_CAVEAT)
 
     if st.button("Use this cut-off", icon=":material/check:", type="primary"):
         if st.session_state.get("cutoff") != cutoff:
@@ -108,6 +158,7 @@ def choose_a_cutoff():
             for key in ("features", "models", "predictions"):
                 st.session_state[key].clear()
         st.session_state["cutoff"] = cutoff
+        st.session_state["cutoff_set"] = True
         st.rerun()
 
     if st.session_state.get("cutoff") is not None:
@@ -122,7 +173,7 @@ def train_a_model():
         return
 
     y = binary_labels()
-    st.subheader("Two ways to describe a molecule")
+    heading("train_a_model")
 
     cols = st.columns(len(DESCRIPTORS), gap="medium")
     for i, (label, filename) in enumerate(DESCRIPTORS.items()):
@@ -146,64 +197,68 @@ def train_a_model():
                 st.code(feature["preview"], language=None)
                 aurocs = st.session_state["models"][label]["aurocs"]
                 st.metric("AUROC", "{0:.3f} ± {1:.3f}".format(np.mean(aurocs), np.std(aurocs)))
-                st.altair_chart(
-                    plot_roc(interpolate_roc_curves(st.session_state["models"][label]["cv_data"])),
-                    width="stretch",
-                )
+                cv_data = st.session_state["models"][label]["cv_data"]
+                panes = st.columns(2, gap="small")
+                panes[0].caption("ROC, five folds")
+                panes[0].altair_chart(plot_roc(interpolate_roc_curves(cv_data)), width="stretch")
+                panes[1].caption("Scores on one fold")
+                panes[1].altair_chart(plot_fold_scores(*cv_data[0]), width="stretch")
 
-    questions(q3)
+    questions(q3, "q3")
+    models_used("train_a_model")
     if st.session_state["models"]:
-        advance("step3", "Take a model to a new library")
+        advance("step3", "Let's apply the models to a virtual screening exercise!")
 
 
 # --- Step 4 ------------------------------------------------------------------
 
 def screen_a_library():
-    st.subheader("A thousand compounds you have never seen")
+    heading("screen_a_library")
+    st.caption("Pick the library your group was assigned.")
 
-    cols = st.columns([0.7, 0.3], vertical_alignment="bottom")
-    uploaded = cols[0].file_uploader(
-        "Drop the SMILES file your group was given", type=["csv", "smi", "txt"]
-    )
-    if os.path.exists(data_path(EXAMPLE_INPUT)):
-        with open(data_path(EXAMPLE_INPUT), "rb") as handle:
-            cols[1].download_button(
-                "No file? Take an example", handle, file_name="example_input.csv",
-                icon=":material/download:",
-            )
-
-    if uploaded is not None:
-        smiles_list = read_uploaded_smiles(uploaded)
-        filename, n_matched = match_library(smiles_list, LIBRARY_FILES, LIBRARY_SMILES_COLUMN)
-        if filename is None:
-            st.error("None of the prepared libraries match this file.")
-        else:
-            st.session_state["library"] = filename
-            st.success("Matched **{0}** - {1} of your {2} compounds found.".format(
-                filename, n_matched, len(smiles_list)))
+    cols = st.columns(len(LIBRARY_FILES))
+    for i, filename in enumerate(LIBRARY_FILES):
+        with cols[i].container(key="lib-{0}".format(i + 1)):
+            if st.button("Library {0}".format(i + 1), key="pick-{0}".format(i + 1),
+                         width="stretch"):
+                st.session_state["library"] = filename
+                st.rerun()
 
     if not st.session_state.get("library"):
         return
 
     library = cached_library(st.session_state["library"])
-    (primary_label, primary_column), (second_label, second_column) = labels()
-    ranked = library.sort_values(primary_column, ascending=False)
+    st.success("Screening **{0}** - {1} compounds.".format(
+        st.session_state["library"].replace(".csv", "").replace("_", " ").title(), len(library)))
 
-    cols = st.columns([0.45, 0.55], gap="medium")
-    cols[0].caption("{0} against {1}".format(second_label, primary_label.lower()))
-    cols[0].altair_chart(
-        plot_model_agreement(library, second_column, primary_column, second_label, primary_label),
+    ranked = library.sort_values(ACTIVITY_MODEL_COLUMN, ascending=False)
+    top = ranked.head(N_TOP_HITS)
+    bottom = ranked.tail(N_TOP_HITS).iloc[::-1]          # worst first
+
+    st.caption(
+        "Predicted S. aureus bioactivity across the library, ChEMBL model. The line "
+        "marks where the top {0} begins.".format(N_TOP_HITS)
+    )
+    st.altair_chart(
+        plot_score_distribution(
+            library[ACTIVITY_MODEL_COLUMN], "Predicted activity",
+            marker=float(top[ACTIVITY_MODEL_COLUMN].min()),
+        ),
         width="stretch",
     )
-    top = ranked.head(N_TOP_HITS)
-    cols[1].caption("Top {0} by {1} - captions are {2} / {3}".format(
-        N_TOP_HITS, primary_label.lower(), primary_label.lower(), second_label.lower()))
-    cols[1].image(draw_molecules_grid(
-        list(top[LIBRARY_SMILES_COLUMN]),
-        ["{0:.2f} / {1:.2f}".format(a, b) for a, b in zip(top[primary_column], top[second_column])],
-    ))
 
-    questions(q4)
+    panels = st.tabs(["Top {0}".format(N_TOP_HITS), "Bottom {0}".format(N_TOP_HITS)])
+    for panel, subset in zip(panels, (top, bottom)):
+        with panel:
+            st.caption("Captions are the predicted activity.")
+            st.image(draw_molecules_grid(
+                list(subset[LIBRARY_SMILES_COLUMN]),
+                ["{0:.2f}".format(v) for v in subset[ACTIVITY_MODEL_COLUMN]],
+                per_row=8,
+            ))
+
+    questions(q4, "q4")
+    models_used("screen_a_library")
     advance("step4", "See everything we know about them")
 
 
@@ -211,60 +266,120 @@ def screen_a_library():
 
 def the_full_picture():
     if not st.session_state.get("library"):
-        st.info("Upload your library first.", icon=":material/info:")
+        st.info("Pick a library first.", icon=":material/info:")
         return
 
     library = cached_library(st.session_state["library"])
-    (primary_label, primary_column), (second_label, second_column) = labels()
-    st.subheader("Activity is only the first column")
+    heading("the_full_picture")
+    hint(RESULTS_HINT)
 
-    table = library.sort_values(primary_column, ascending=False).rename(columns={
+    table = library.sort_values(ACTIVITY_MODEL_COLUMN, ascending=False).rename(columns={
         LIBRARY_SMILES_COLUMN: "smiles",
-        primary_column: primary_label,
-        second_column: second_label,
+        ACTIVITY_MODEL_COLUMN: ACTIVITY_MODEL_LABEL,
         **COLUMN_LABELS,
     })
-    table = table[["smiles", primary_label, second_label] + list(COLUMN_LABELS.values())]
+    table = table[["smiles", ACTIVITY_MODEL_LABEL] + list(COLUMN_LABELS.values())]
     st.dataframe(table, height=430)
     st.download_button(
         "Download this table", table.to_csv(index=False).encode(),
         file_name=st.session_state["library"].replace(".csv", "_predictions.csv"),
         mime="text/csv", icon=":material/download:",
     )
-    questions(q5)
-    advance("step5", "Expand the natural product in your hits")
+    questions(q5, "q5")
+    models_used("the_full_picture")
+    advance("step5", "Let's expand one of the hits!")
 
 
 # --- Step 6 ------------------------------------------------------------------
 
 def hit_expansion():
-    st.subheader("Can you beat the natural product?")
+    heading("hit_expansion")
     analogues = cached_analogues(ANALOGUES_FILE)
+    analogues = analogues[analogues["generator"].isin(ANALOGUE_GENERATORS)]
 
-    cols = st.columns([0.3, 0.7], gap="medium")
+    # 1. The hit ---------------------------------------------------------------
+    cols = st.columns([0.32, 0.68], gap="medium")
     with cols[0].container(border=True):
-        st.image(draw_molecule(PARENT_SMILES, size=(280, 240)))
+        st.image(draw_molecule(PARENT_SMILES, size=(300, 250)))
         st.markdown("**{0}**".format(PARENT_NAME))
         st.metric("S. aureus activity", PARENT_SAUREUS)
         st.metric("Efflux evasion", PARENT_EFFLUX)
-    cols[0].caption(
-        "It sits in every group's library. Potent against Gram-positives, useless against "
-        "Gram-negatives - not because it misses its target, but because it never gets inside."
+    cols[1].markdown(PARENT_BLURB)
+    cols[1].markdown(
+        "To improve it we asked two generative models for analogues. Neither invents "
+        "molecules freely: each is given a starting point and a rule about what it may "
+        "change. **What you give them decides what you get back.**"
     )
-    cols[1].caption(
-        "{0} analogues from five generative models. Up and to the right of the parent is better "
-        "on both axes.".format(len(analogues))
+
+    # 2. The generators --------------------------------------------------------
+    st.divider()
+    st.subheader("Two generators, two different inputs")
+    gen_cols = st.columns(len(GENERATORS), gap="medium")
+    for col, generator in zip(gen_cols, GENERATORS):
+        with col.container(border=True):
+            st.markdown("**{0}**  `{1}`".format(generator["name"], generator["model"]))
+            st.caption(generator["input_label"])
+            st.image(draw_molecule(generator["input_smiles"], size=(360, 230)))
+            st.caption(generator["text"])
+
+    for generator in GENERATORS:
+        subset = analogues[analogues["generator"] == generator["name"]]
+        top = subset.sort_values(ANALOGUE_X, ascending=False).head(N_GENERATOR_EXAMPLES)
+        with st.container(border=True):
+            st.markdown("**{0}** - {1} analogues. Best {2} by predicted S. aureus "
+                        "activity:".format(generator["name"], len(subset), N_GENERATOR_EXAMPLES))
+            st.image(draw_molecules_grid(
+                list(top["canonical_smiles"]),
+                ["{0:.2f}".format(v) for v in top[ANALOGUE_X]],
+                per_row=N_GENERATOR_EXAMPLES, size=(190, 165),
+            ))
+            st.download_button(
+                "Download all {0} analogues as SMILES".format(generator["name"]),
+                "\n".join(subset["canonical_smiles"]).encode(),
+                file_name="{0}_analogues.smi".format(generator["name"].lower()),
+                icon=":material/download:", key="dl_" + generator["name"],
+            )
+
+    # 3. Efflux ----------------------------------------------------------------
+    st.divider()
+    st.subheader("Getting inside a Gram-negative cell")
+    st.markdown(EFFLUX_BLURB.format(PARENT_EFFLUX))
+    st.caption(
+        "{0} analogues. Up and to the right of the parent is better on both axes.".format(
+            len(analogues))
     )
-    cols[1].altair_chart(
+    st.altair_chart(
         plot_pareto(analogues, ANALOGUE_X, ANALOGUE_Y, ANALOGUE_SHORTLIST,
                     PARENT_SAUREUS, PARENT_EFFLUX, SAUREUS_THRESHOLD),
         width="stretch",
     )
-
     with st.container(border=True):
         cols = st.columns(4)
         cols[0].metric("Analogues", len(analogues))
         cols[1].metric("Keep potency", int(analogues["clears_saureus_thr"].sum()))
         cols[2].metric("Gain permeability", int(analogues["better_efflux_than_parent"].sum()))
         cols[3].metric("Both", int(analogues[ANALOGUE_SHORTLIST].sum()))
-    questions(q6)
+
+    # 4. Gram-negative activity ------------------------------------------------
+    st.divider()
+    st.subheader("Did any of it buy Gram-negative activity?")
+    st.markdown(
+        "Evading efflux is necessary, not sufficient. These two models predict growth "
+        "inhibition directly, each with its own recommended threshold. Platensimycin "
+        "fails both."
+    )
+    cols = st.columns(len(GRAM_NEGATIVE), gap="medium")
+    for col, (name, column, threshold, parent, model) in zip(cols, GRAM_NEGATIVE):
+        clearing = int((analogues[column] >= threshold).sum())
+        with col.container(border=True):
+            st.markdown("**{0}**  `{1}`".format(name, model))
+            st.caption("Threshold {0}. Platensimycin scores {1}.".format(threshold, parent))
+            st.altair_chart(
+                plot_score_distribution(analogues[column], "Predicted activity",
+                                        marker=threshold),
+                width="stretch",
+            )
+            st.metric("Analogues clearing the threshold", clearing)
+
+    questions(q6, "q6")
+    models_used("hit_expansion")
