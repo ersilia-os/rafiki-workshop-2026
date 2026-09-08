@@ -2,7 +2,6 @@ import os
 
 import numpy as np
 import pandas as pd
-from lol import LOL
 from rdkit import Chem
 from rdkit.Chem import Draw
 from sklearn.ensemble import RandomForestClassifier
@@ -54,12 +53,6 @@ def load_library(filename):
 
 def load_analogues(filename):
     return pd.read_csv(data_path(filename))
-
-
-def reduce_dimensions(X, y, n_components=100):
-    n_components = min(n_components, X.shape[1])
-    reducer = LOL(n_components=n_components)
-    return reducer, reducer.fit_transform(X, np.array(y))
 
 
 def train_classifier(X, y, n_splits=5, test_size=0.2):

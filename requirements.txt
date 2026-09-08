@@ -4,4 +4,3 @@ numpy
 rdkit
 altair
 scikit-learn
-lolP

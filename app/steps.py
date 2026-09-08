@@ -27,7 +27,7 @@ from plots import (
 )
 from utils import (
     binarize, data_path, descriptor_preview, draw_molecule, draw_molecules_grid,
-    interpolate_roc_curves, reduce_dimensions, train_classifier,
+    interpolate_roc_curves, train_classifier,
 )
 
 
@@ -185,12 +185,10 @@ def train_a_model():
                 else:
                     with st.spinner("Calculating {0} and training...".format(label)):
                         X = cached_descriptors(filename)
-                        reducer, X_reduced = reduce_dimensions(X, y)
                         st.session_state["features"][label] = {
-                            "reducer": reducer, "X": X_reduced,
                             "preview": descriptor_preview(X), "shape": X.shape,
                         }
-                        st.session_state["models"][label] = train_classifier(X_reduced, y)
+                        st.session_state["models"][label] = train_classifier(X, y)
             if label in st.session_state["models"]:
                 feature = st.session_state["features"][label]
                 st.caption("One molecule, as {0} numbers".format(feature["shape"][1]))
