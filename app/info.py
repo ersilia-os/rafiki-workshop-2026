@@ -90,18 +90,16 @@ RESPONSE_CANDIDATE_COLUMNS = ["Candidate {0}".format(i) for i in range(1, 6)]
 # Where the room submits its five candidates. The sheet above is what this
 # form writes into, and the Collective step reads back.
 PICKS_FORM_URL = "https://forms.gle/RFuF4bn3bFZudM5G9"
+MODEL_HUB_URL = "https://ersilia.io/model-hub"
+
 # The last thing in the workshop.
 CLOSING_TITLE = "Congratulations!"
 CLOSING = (
-    "You have been round a whole drug discovery cycle: a plate of measurements, a "
-    "decision about what counts as active, two models trained and compared, a library "
-    "nobody in the room had screened, a profile of everything besides activity, and a "
-    "generative model asked for better versions of a hit. Every model you used along "
-    "the way is free, open, and in the Ersilia Model Hub.\n\n"
-    "Don't hesitate to reach out to us at [hello@ersilia.io](mailto:hello@ersilia.io)."
-)
-
-MODEL_HUB_URL = "https://ersilia.io/model-hub"
+    "You have been round a simple drug discovery cycle. Remember this is just a "
+    "simulated exercise. Feel free to explore models in the "
+    "[Ersilia Model Hub]({0}) to come up with your own pipeline!\n\n"
+    "Don't hesitate to write to us at [hello@ersilia.io](mailto:hello@ersilia.io)."
+).format(MODEL_HUB_URL)
 
 # Every Ersilia model behind a number in this app. Titles are the models' own.
 MODELS = {
