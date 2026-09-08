@@ -39,9 +39,21 @@ streamlit run app/app.py
 ```
 
 `requirements.txt` is the app's runtime and the only file Community Cloud installs.
-There is deliberately no `packages.txt` - see the comments in it before adding one.
 What the data-preparation scripts need is kept separately in
 `scripts/requirements.txt`, which Cloud never reads.
+
+There is no `packages.txt`, and no rdkit in the app. Molecules are drawn in the browser
+by RDKit.js - the same C++ code compiled to WebAssembly - wired up in `app/molecules.py`.
+The rdkit wheel needs `libXrender.so.1` at import time, Community Cloud's Python 3.14
+image does not carry it, and a `packages.txt` cannot supply it either: the image has a
+stale bullseye-security apt source whose Release file expired on 2026-09-07, so `apt-get`
+exits non-zero and Cloud aborts the build before pip runs. Both confirmed against the
+build log. Drawing client-side removes the dependency instead of working around it, and
+rdkit was used nowhere else in `app/`.
+
+RDKit.js is served from `app/static/` via `enableStaticServing`, not from a CDN, so a room
+of participants does not each fetch 7 MB from jsdelivr at once. Refresh
+`RDKit_minimal.js` and `RDKit_minimal.wasm` together, from one `@rdkit/rdkit` release.
 
 Set `RAFIKI_UNLOCK_ALL=1` to reach every step without walking the workshop in order.
 

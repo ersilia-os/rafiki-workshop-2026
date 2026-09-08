@@ -25,9 +25,9 @@ from plots import (
     plot_chemical_space, plot_fold_scores, plot_pareto, plot_readout_histogram, plot_roc,
     plot_score_distribution,
 )
+from molecules import draw_molecule, draw_molecules_grid
 from utils import (
-    binarize, data_path, descriptor_preview, draw_molecule, draw_molecules_grid,
-    interpolate_roc_curves, train_classifier,
+    binarize, data_path, descriptor_preview, interpolate_roc_curves, train_classifier,
 )
 
 
@@ -289,11 +289,11 @@ def screen_a_library():
     for panel, subset in zip(panels, (top, bottom)):
         with panel:
             st.caption("Captions are the predicted activity.")
-            st.image(draw_molecules_grid(
+            draw_molecules_grid(
                 list(subset[LIBRARY_SMILES_COLUMN]),
                 ["{0:.2f}".format(v) for v in subset[ACTIVITY_MODEL_COLUMN]],
-                per_row=8,
-            ))
+                per_row=8, size=(170, 150),
+            )
 
     questions(q4, "q4")
     models_used("screen_a_library")
@@ -338,7 +338,7 @@ def hit_expansion():
     # 1. The hit ---------------------------------------------------------------
     cols = st.columns([0.32, 0.68], gap="medium")
     with cols[0].container(border=True, key="card-parent"):
-        st.image(draw_molecule(PARENT_SMILES, size=(300, 250)))
+        draw_molecule(PARENT_SMILES, size=(300, 250))
         st.markdown("**{0}**".format(PARENT_NAME))
         # Side by side: stacked, the card ran twice the height of the two
         # paragraphs beside it and left a hole in the right-hand column.
@@ -360,7 +360,7 @@ def hit_expansion():
         with col.container(border=True, key="card-generator-" + generator["name"]):
             st.markdown("**{0}**  `{1}`".format(generator["name"], generator["model"]))
             st.caption(generator["input_label"])
-            st.image(draw_molecule(generator["input_smiles"], size=(360, 230)))
+            draw_molecule(generator["input_smiles"], size=(360, 230))
             st.caption(generator["text"])
 
     for generator in GENERATORS:
@@ -369,11 +369,11 @@ def hit_expansion():
         with st.container(border=True, key="card-grid-" + generator["name"]):
             st.markdown("**{0}** - {1} analogues. Best {2} by predicted S. aureus "
                         "activity:".format(generator["name"], len(subset), N_GENERATOR_EXAMPLES))
-            st.image(draw_molecules_grid(
+            draw_molecules_grid(
                 list(top["canonical_smiles"]),
                 ["{0:.2f}".format(v) for v in top[ANALOGUE_X]],
-                per_row=N_GENERATOR_EXAMPLES, size=(190, 165),
-            ))
+                per_row=5, size=(190, 165),
+            )
             st.download_button(
                 "Download all {0} analogues as SMILES".format(generator["name"]),
                 "\n".join(subset["canonical_smiles"]).encode(),

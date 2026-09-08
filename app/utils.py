@@ -2,8 +2,6 @@ import os
 
 import numpy as np
 import pandas as pd
-from rdkit import Chem
-from rdkit.Chem import Draw
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import roc_auc_score, roc_curve
 from sklearn.model_selection import train_test_split
@@ -84,21 +82,3 @@ def interpolate_roc_curves(cv_data, n_points=100):
     df["Mean TPR"] = mean_tpr
     df["FPR"] = mean_fpr
     return df
-
-
-def draw_molecule(smiles, size=(200, 200)):
-    """Draw a molecule. Any attachment point is picked out, since a bare `*` is
-    easy to miss and it is the whole point of a scaffold."""
-    mol = Chem.MolFromSmiles(smiles)
-    dummies = [a.GetIdx() for a in mol.GetAtoms() if a.GetAtomicNum() == 0]
-    if not dummies:
-        return Draw.MolToImage(mol, size=size)
-    return Draw.MolToImage(
-        mol, size=size, highlightAtoms=dummies,
-        highlightColor=(0.902, 0.216, 0.271),      # #e63745
-    )
-
-
-def draw_molecules_grid(smiles_list, legends, per_row=4, size=(260, 220)):
-    mols = [Chem.MolFromSmiles(s) for s in smiles_list]
-    return Draw.MolsToGridImage(mols, molsPerRow=per_row, subImgSize=size, legends=legends)

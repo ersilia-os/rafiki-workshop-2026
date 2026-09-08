@@ -56,6 +56,13 @@ violetColor = "#6C5CE7"
 backgroundColor = "#FFFFFF"
 secondaryBackgroundColor = "#F4F4F8"
 
+[server]
+# Serves app/static/ at /app/static/. The folder is resolved relative to the
+# entrypoint, app/app.py, not the repository root. RDKit.js and its WebAssembly
+# live there rather than on a CDN: one less external dependency, and a workshop
+# room on shared wifi should not each fetch 7 MB from jsdelivr at once.
+enableStaticServing = true
+
 [client]
 # Hide "Deploy" and the developer menu. Neither means anything to a workshop
 # attendee, and Streamlit's own dropdown cannot be themed to match the app.

@@ -1,24 +1,22 @@
-# The app's runtime, and the only file Streamlit Community Cloud installs -
-# with pip. The data-preparation scripts have their own, in scripts/.
+# The app's runtime, and the only file Streamlit Community Cloud installs, with
+# pip. The data-preparation scripts have their own, in scripts/.
 #
-# There is deliberately no packages.txt. Community Cloud's image carries a
-# leftover Debian bullseye-security apt source, and bullseye LTS ended on
-# 2026-08-31, so that repository's Release file is permanently expired: any
-# packages.txt makes apt-get exit non-zero and the build aborts before pip runs.
+# Note what is NOT here: rdkit, and any packages.txt.
 #
-# Confirmed 2026-09-08 by putting one back and reading the build log: apt-get
-# hits an expired bullseye-security Release file, returns non-zero, and Cloud
-# aborts the build before pip runs. packages.txt cannot work here at all.
+# rdkit's wheel needs libXrender.so.1 at import time, and Cloud's Python 3.14
+# image does not carry it, so `from rdkit.Chem import Draw` fails on import.
+# packages.txt cannot supply it either: the image has a stale bullseye-security
+# apt source, bullseye LTS ended 2026-08-31, and an expired Release file makes
+# apt-get exit non-zero, which aborts the build before pip runs. Both were
+# confirmed against the Cloud build log on 2026-09-08 - see git history.
 #
-# rdkit's wheel needs libXrender.so.1 at import time and Cloud's Python 3.14
-# image does not have it, so `from rdkit.Chem import Draw` fails on import.
-# rdkit.Chem itself is fine without X11 - it is only the Draw module. A fix for
-# the drawing is in progress; until then the app cannot start.
+# So the drawing moved to the browser: app/molecules.py renders molecules with
+# RDKit.js compiled to WebAssembly. rdkit was used nowhere else in app/, so the
+# server now needs it not at all. It remains a dependency of the scripts.
 #
 # Versions resolved on linux-64.
 streamlit==1.63.0
 pandas==3.0.5
 numpy==2.4.6
-rdkit==2026.3.6
 altair==6.2.2
 scikit-learn==1.9.0
