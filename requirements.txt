@@ -1,4 +1,5 @@
-# The only dependency file. Streamlit Community Cloud installs from it with pip.
+# The app's runtime, and the only file Streamlit Community Cloud installs -
+# with pip. The data-preparation scripts have their own, in scripts/.
 #
 # There is deliberately no packages.txt. Community Cloud's image carries a
 # leftover Debian bullseye-security apt source, and bullseye LTS ended on

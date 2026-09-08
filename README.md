@@ -15,6 +15,7 @@ The activity data comes from the EU-OPENSCREEN ECBD assay "MSSA ATCC 29213 Anti-
 binary fingerprints as `uint8`, embeddings as `float16`. To rebuild from scratch:
 
 ```bash
+pip install -r scripts/requirements.txt        # not the app's requirements.txt
 python scripts/01_prepare_saureus_dataset.py   # needs the eu-openscreen repo alongside this one
 bash   scripts/02_run_featurisers.sh           # ersilia: eos4wt0, eos9o72, eos1klk (~20 min)
                                                # raw output lands in data/raw/, not versioned
@@ -37,8 +38,10 @@ pip install -r requirements.txt
 streamlit run app/app.py
 ```
 
-`requirements.txt` is the only dependency file, and there is deliberately no
-`packages.txt` - see the comments in it before adding one.
+`requirements.txt` is the app's runtime and the only file Community Cloud installs.
+There is deliberately no `packages.txt` - see the comments in it before adding one.
+What the data-preparation scripts need is kept separately in
+`scripts/requirements.txt`, which Cloud never reads.
 
 Set `RAFIKI_UNLOCK_ALL=1` to reach every step without walking the workshop in order.
 

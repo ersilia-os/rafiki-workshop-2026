@@ -1,0 +1,16 @@
+# What the DATA-PREPARATION SCRIPTS need, kept out of the app's runtime.
+#
+# Streamlit Community Cloud never reads this: it searches the entrypoint
+# directory and then the repository root, not scripts/. The app installs from
+# the requirements.txt at the root, which is deliberately smaller.
+#
+# Unpinned on purpose. These are run occasionally to rebuild data/, not on a
+# deadline, and 02_run_featurisers.sh runs inside the ersilia conda environment,
+# whose pins these should not fight.
+#
+# 01_prepare_saureus_dataset.py uses rdkit.Chem and RDLogger only, never
+# rdkit.Chem.Draw, so none of the X11 questions that affect the app apply here.
+pandas
+numpy
+rdkit
+pillow
