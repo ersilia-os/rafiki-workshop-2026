@@ -38,11 +38,8 @@ pip install -r requirements.txt
 streamlit run app/app.py
 ```
 
-`requirements.txt` is the app's runtime; `packages.txt` supplies the two apt packages
-rdkit needs. rdkit's wheel vendors cairo but leaves `libXrender.so.1` and `libXext.so.6`
-to the system, and Community Cloud's Python 3.14 image does not carry them, so without
-`packages.txt` the app dies at `from rdkit.Chem import Draw` - on import, before anything
-renders.
+`requirements.txt` is the app's runtime and the only file Community Cloud installs.
+There is deliberately no `packages.txt` - see the comments in it before adding one.
 What the data-preparation scripts need is kept separately in
 `scripts/requirements.txt`, which Cloud never reads.
 
