@@ -62,13 +62,6 @@ def hint(text):
         st.markdown(text)
 
 
-def careful(text):
-    """A caveat about the data. Same shape as the questions box, in red."""
-    with st.container(border=True, key="careful"):
-        st.caption("Careful")
-        st.markdown(text)
-
-
 def questions(items, key):
     """Discussion prompts. style.py styles any container keyed `talk-*` amber."""
     with st.container(border=True, key="talk-" + key):
@@ -172,16 +165,18 @@ def choose_a_cutoff():
         stats[0].metric("Mean", round(df[READOUT_COLUMN].mean(), 2))
         stats[1].metric("Std deviation", round(df[READOUT_COLUMN].std(), 2))
         stats[2].metric("Actives", int(dt["Binary"].sum()))
-        stats[3].metric("Inactives", int(len(dt) - dt["Binary"].sum()))
+        stats[3].metric("Inactives", int(len(dt) - dt["Binary"].sum()),
+                        help=SAMPLING_CAVEAT)
 
     cols = st.columns(2, gap="medium")
     cols[0].caption(
-        "Distribution of {0}, scaled back to the whole screen".format(READOUT_LABEL.lower())
+        "Distribution of {0}, scaled back to the whole screen. The bars are "
+        "square-root scaled, so the tail stays visible.".format(READOUT_LABEL.lower())
     )
     cols[0].altair_chart(
         plot_readout_histogram(
             screen_scale(dt, READOUT_COLUMN), READOUT_COLUMN, cutoff, READOUT_LABEL,
-            weight_column="Weight", count_label="Compounds in the screen",
+            weight_column="Weight", count_label="Share of the screen (%)", share=True,
         ),
         width="stretch",
     )
@@ -197,7 +192,6 @@ def choose_a_cutoff():
         cols[1].warning("Missing `data/{0}`.".format(PROJECTION_FILE))
 
     questions(q2, "q2")
-    careful(SAMPLING_CAVEAT)
 
     if st.button("Use this cut-off", icon=":material/check:", type="primary"):
         if st.session_state.get("cutoff") != cutoff:

@@ -1,6 +1,6 @@
-# Rafiki Workshop 2026
+# RAFIKI Workshop 2026
 
-Streamlit app for the Rafiki 2026 workshop, developed by the [Ersilia Open Source Initiative](https://ersilia.io).
+Streamlit app for the RAFIKI 2026 workshop, developed by the [Ersilia Open Source Initiative](https://ersilia.io).
 Participants inspect a *Staphylococcus aureus* screen, choose an activity cut-off, train a classifier
 on two molecular representations, screen a new compound library, and finish by expanding the one
 natural product that sits in every group's library.

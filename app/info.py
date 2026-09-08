@@ -2,7 +2,9 @@ import os
 
 # Everything that changes between workshop editions lives in this file.
 
-TITLE = "Rafiki Workshop 2026"
+TITLE = "RAFIKI Workshop 2026"
+# Sits beside the Ersilia wordmark in the header, in place of a sidebar.
+WORDMARK_LABEL = "RAFIKI Workshop, Nairobi, 2026"
 ORGANISATION = "Ersilia Open Source Initiative"
 
 # The top navigation: url_path, tab label, icon, and the function in steps.py.
@@ -15,7 +17,7 @@ PAGES = [
 ]
 
 about = [
-    "This app is part of the Rafiki Workshop 2026.",
+    "This app is part of the RAFIKI Workshop 2026.",
     "It has been developed by the [Ersilia Open Source Initiative](https://ersilia.io).",
     "Code and data are available in this [GitHub repository](https://github.com/ersilia-os/rafiki-workshop-2026).",
     "If you have a use case for your own research, contact us at [hello@ersilia.io](mailto:hello@ersilia.io).",
@@ -54,12 +56,12 @@ DOWNSAMPLE_ABOVE = 50
 DOWNSAMPLE_KEPT = 9379
 DOWNSAMPLE_SOURCE = 100247
 
+# Shown on hover over the Inactives count, which is the number it qualifies.
 SAMPLING_CAVEAT = (
-    "Every active was kept and the inactives were downsampled to reach 10,000 compounds, "
-    "so the hit rate in this file is about ten times higher than in the original screen. "
-    "The histogram corrects for that - bins below 50% are scaled back up - but the counts "
-    "beside the slider are this file's own, and they are what the model will train on. "
-    "It is a teaching set, not a basis for any claim about how often a screen hits."
+    "Every active was kept while the inactives were downsampled to fit 10,000 rows, so "
+    "this split is about ten times richer in actives than the real screen. The histogram "
+    "corrects for that; these counts do not, and they are what the model trains on. A "
+    "teaching set, not a basis for any claim about how often a screen hits."
 )
 
 MODEL_HUB_URL = "https://ersilia.io/model-hub"

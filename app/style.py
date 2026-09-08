@@ -16,6 +16,11 @@ hue, a hairline of the hue, and the label in the hue. Never a saturated fill.
 That is the active nav tab, the six library buttons and the three callouts.
 """
 
+def _css_string(text):
+    """Quote a string for CSS `content`, escaping what would end it early."""
+    return '"%s"' % text.replace("\\", "\\\\").replace('"', '\\"')
+
+
 PERIWINKLE = "#6C5CE7"
 TINT_SOFT = "rgba(108, 92, 231, 0.07)"   # periwinkle wash: hover and the current tab
 SURFACE = "#FFFFFF"
@@ -26,7 +31,6 @@ MUTED = "#6B6675"
 # The three callout hues, from the design system's semantic tokens.
 GUIDE = "#3F9D6B"     # how to read the page
 DISCUSS = "#C98A1E"   # talk it through
-CAUTION = "#D9534F"   # a caveat about the data
 
 from info import LIBRARY_COLOURS
 
@@ -68,7 +72,6 @@ CALLOUT_RULES = "".join("""
 """.format(sel=sel, hue=hue, bg=RECESSED, edge=EDGE) for sel, hue in (
     (".st-key-hint", GUIDE),
     ('[class*="st-key-talk"]', DISCUSS),
-    (".st-key-careful", CAUTION),
     # A parameter carried over from an earlier step: state, so periwinkle.
     (".st-key-cutoff-in-use", PERIWINKLE),
 ))
@@ -150,3 +153,54 @@ a[aria-current="page"] {
     "periwinkle": PERIWINKLE, "tint_soft": TINT_SOFT, "surface": SURFACE,
     "muted": MUTED, "callouts": CALLOUT_RULES, "libraries": LIBRARY_RULES,
 }
+
+
+def header_label(text):
+    """Name the workshop beside the Ersilia wordmark, in place of a sidebar.
+
+    Written with CSS rather than a widget because the header is Streamlit's own
+    chrome and takes no content from the script. The wordmark is an <img>, and a
+    replaced element cannot carry ::after, so the text hangs off its container.
+    """
+    return """<style>
+/* The label hangs off the logo's own anchor, so it would otherwise pick up the
+   link underline. */
+[data-testid="stLogoLink"] { text-decoration: none !important; }
+[data-testid="stHeader"] [data-testid="stLogoLink"]::after,
+[data-testid="stHeader"] [data-testid="stLogoSpacer"]::after {
+    content: %(text)s;
+    margin-left: 0.85rem;
+    padding-left: 0.85rem;
+    border-left: 1px solid %(edge)s;
+    color: %(muted)s;
+    font-size: 0.9rem;
+    font-weight: 500;
+    white-space: nowrap;
+    text-decoration: none;
+    cursor: default;
+}
+[data-testid="stHeader"] [data-testid="stLogoLink"] {
+    display: inline-flex !important;
+    align-items: center;
+}
+</style>""" % {"text": _css_string(text), "edge": EDGE, "muted": MUTED}
+
+
+def locked_tabs(url_paths):
+    """Grey out the steps not yet reached, and stop them being clicked.
+
+    Every step is always in the navigation so the shape of the workshop is
+    visible from the start; this is what makes the unreached ones look and
+    behave locked. render() in app.py refuses to draw their body as well, since
+    pointer-events does not stop a typed URL or a keyboard activation.
+    """
+    if not url_paths:
+        return "<style></style>"
+    rules = "".join("""
+a[href$="/%(path)s"] {
+    pointer-events: none !important;
+    opacity: 0.38 !important;
+    cursor: not-allowed !important;
+}
+""" % {"path": p} for p in url_paths)
+    return "<style>%s</style>" % rules

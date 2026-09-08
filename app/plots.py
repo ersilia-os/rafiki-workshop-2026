@@ -30,11 +30,19 @@ HISTOGRAM_COUNT_SCALE = "sqrt"
 
 
 def plot_readout_histogram(df, readout_column, cutoff, label, bins=45,
-                           weight_column=None, count_label="Compounds"):
+                           weight_column=None, count_label="Compounds", share=False):
     """Histogram of the readout, bars past the cut-off in the active colour.
 
     With `weight_column`, bins sum weights instead of counting rows. That is how
-    the downsampling is undone for display - see utils.screen_scale.
+    the downsampling is undone for display - see utils.screen_scale. With
+    `share`, bars are a percentage of the total rather than an absolute count,
+    which keeps a reweighted histogram from quoting more compounds than the file
+    holds.
+
+    The y axis is square-root scaled: the peak bin is about 1,500 times the
+    smallest, so a linear axis flattens the tail into nothing, and a log axis
+    cannot draw these marks at all - `bin="binned"` bars need a zero baseline
+    and render blank against a log scale. Tested, not assumed.
     """
     frame = df[df[readout_column].notna()]
     values = frame[readout_column].to_numpy()
@@ -45,10 +53,14 @@ def plot_readout_histogram(df, readout_column, cutoff, label, bins=45,
     active_counts, _ = np.histogram(
         values[active], bins=edges, weights=None if weights is None else weights[active]
     )
+    # Decide the colour before rescaling, so the comparison stays on like terms.
+    is_active = active_counts > counts / 2
+    if share and counts.sum():
+        counts = 100.0 * counts / counts.sum()
 
     hist = pd.DataFrame({
         "start": edges[:-1], "end": edges[1:], count_label: counts,
-        "Active": active_counts > counts / 2,
+        "Active": is_active,
     })
     hist = hist[hist[count_label] > 0]
 

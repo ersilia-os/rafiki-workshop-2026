@@ -7,18 +7,18 @@ root = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(root)
 
 from info import (
-    ORGANISATION, PAGES, READOUT_COLUMN, SMILES_COLUMN, TITLE, TRAINING_FILE, intro,
+    ORGANISATION, PAGES, READOUT_COLUMN, SMILES_COLUMN, TITLE, TRAINING_FILE,
+    WORDMARK_LABEL,
 )
-from style import CSS
+from style import CSS, header_label, locked_tabs
 from utils import data_path
 import steps
 
 FAVICON = os.path.join(root, "..", "assets", "favicon.png")
 WORDMARK = os.path.join(root, "..", "assets", "ersilia_brand.png")
 
-st.set_page_config(
-    layout="wide", page_title=TITLE, page_icon=FAVICON, initial_sidebar_state="collapsed"
-)
+# No sidebar: the workshop is named beside the wordmark instead.
+st.set_page_config(layout="wide", page_title=TITLE, page_icon=FAVICON)
 
 st.session_state.setdefault("features", {})
 st.session_state.setdefault("models", {})
@@ -40,7 +40,7 @@ UNLOCKS = {
 UNLOCK_ALL = os.environ.get("RAFIKI_UNLOCK_ALL") == "1"
 
 
-def available(url_path):
+def unlocked(url_path):
     if UNLOCK_ALL:
         return True
     key = UNLOCKS.get(url_path)
@@ -53,14 +53,18 @@ def render(spec, number):
     One quiet line. The nav names the step; this adds the position within the
     five, which the nav cannot show, and it survives the nav CSS going stale.
     """
-    _, title, _, step = spec
+    url_path, title, _, step = spec
     st.html(CSS)
+    st.html(header_label(WORDMARK_LABEL))
+    st.html(locked_tabs([p[0] for p in PAGES if not unlocked(p[0])]))
     with st.container(key="eyebrow", horizontal=True, vertical_alignment="center"):
-        st.caption(
-            "Step {0} of {1} · {2} · {3}".format(number, len(PAGES), title, TITLE)
-        )
+        st.caption("Step {0} of {1} · {2}".format(number, len(PAGES), title))
         if UNLOCK_ALL:
             st.badge("all steps unlocked", color="orange", icon=":material/lock_open:")
+    if not unlocked(url_path):
+        # The tab is greyed and unclickable, but a typed URL still lands here.
+        st.info("Finish step {0} first.".format(number - 1), icon=":material/lock:")
+        return
     getattr(steps, step)()
 
 
@@ -72,18 +76,9 @@ def page(spec, number):
     )
 
 
-# Upper-left chrome, capped at 32px tall. Visible even with the sidebar collapsed.
+# Upper-left chrome, capped at 32px tall. style.header_label writes the
+# workshop's name beside it.
 st.logo(WORDMARK, size="large", link="https://ersilia.io")
-
-with st.sidebar:
-    st.subheader(TITLE)
-    st.write(intro)
-    st.divider()
-    st.caption(
-        "Brought to you by the [{0}](https://ersilia.io) — a tech-nonprofit fueling "
-        "sustainable research in the Global South.  \nQuestions: "
-        "[hello@ersilia.io](mailto:hello@ersilia.io)".format(ORGANISATION)
-    )
 
 if os.path.exists(data_path(".placeholder")):
     st.error(
@@ -101,7 +96,10 @@ if not os.path.exists(data_path(TRAINING_FILE)):
     )
     st.stop()
 
-pages = [page(spec, i + 1) for i, spec in enumerate(PAGES) if available(spec[0])]
+# Every step is always in the nav, so the shape of the workshop is visible from
+# the first screen. Locked ones are greyed and unclickable (style.locked_tabs)
+# and refuse to render their body (render, above).
+pages = [page(spec, i + 1) for i, spec in enumerate(PAGES)]
 nav = st.navigation(pages, position="top")
 
 # A step button unlocks the next page and parks its url_path here. It cannot
