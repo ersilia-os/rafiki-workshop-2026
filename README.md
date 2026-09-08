@@ -33,14 +33,12 @@ banner while they are in place.
 ## Run
 
 ```bash
-conda env create -f environment.yml
-conda activate rafiki-workshop-2026
+pip install -r requirements.txt
 streamlit run app/app.py
 ```
 
-`environment.yml` is the only dependency file. Streamlit Community Cloud is the
-deployment target, and it installs from conda-forge rather than pip because rdkit's PyPI
-wheel needs system X11 libraries that would require an apt step.
+`requirements.txt` is the only dependency file, and there is deliberately no
+`packages.txt` - see the comments in it before adding one.
 
 Set `RAFIKI_UNLOCK_ALL=1` to reach every step without walking the workshop in order.
 

@@ -1,0 +1,19 @@
+# The only dependency file. Streamlit Community Cloud installs from it with pip.
+#
+# There is deliberately no packages.txt. Community Cloud's image carries a
+# leftover Debian bullseye-security apt source, and bullseye LTS ended on
+# 2026-08-31, so that repository's Release file is permanently expired: any
+# packages.txt makes apt-get exit non-zero and the build aborts before pip runs.
+#
+# rdkit's wheel needs libXrender and libXext at import time. Community Cloud's
+# image is Debian trixie, and a full trixie image provides both, so no system
+# packages are needed. If the app ever fails to start with
+# "ImportError: libXrender.so.1", that assumption has broken.
+#
+# Versions resolved on linux-64.
+streamlit==1.63.0
+pandas==3.0.5
+numpy==2.4.6
+rdkit==2026.3.6
+altair==6.2.2
+scikit-learn==1.9.0
