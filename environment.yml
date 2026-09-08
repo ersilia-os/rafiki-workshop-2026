@@ -3,17 +3,20 @@
 ## links against libXrender/libXext, which would need packages.txt and an
 ## apt-get step; conda-forge's rdkit brings those libraries with it.
 ## requirements.txt is kept for the Docker/DigitalOcean path.
+##
+## Versions are pinned and were resolved on linux-64, the platform Community
+## Cloud runs. Re-resolve before changing them.
 name: rafiki-workshop-2026
 channels:
   - conda-forge
 dependencies:
-  - python=3.11
-  - streamlit
-  - pandas
-  - numpy
-  - rdkit
-  - altair
-  - scikit-learn
+  - python=3.11.16
+  - streamlit=1.63.0
+  - pandas=3.0.5
+  - numpy=2.4.6
+  - rdkit=2026.3.6
+  - altair=6.2.2
+  - scikit-learn=1.9.0
   - pip
   - pip:
-      - lolP
+      - lolP==0.0.4
