@@ -5,7 +5,7 @@ Participants inspect a *Staphylococcus aureus* screen, choose an activity cut-of
 on two molecular representations, screen a new compound library, and finish by expanding the one
 natural product that sits in every group's library.
 
-The activity data comes from the EU-OpenScreen ECBD assay "MSSA ATCC 29213 Anti-Bacterial Assay"
+The activity data comes from the EU-OPENSCREEN ECBD assay "MSSA ATCC 29213 Anti-Bacterial Assay"
 (*S. aureus* ATCC 29213, 50 uM single point), via
 [eu-openscreen-antimicrobial-tasks](https://github.com/ersilia-os/eu-openscreen-antimicrobial-tasks).
 

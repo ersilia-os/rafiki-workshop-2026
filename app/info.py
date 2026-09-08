@@ -22,10 +22,10 @@ about = [
 ]
 
 intro = """
-Public screening data from EU OpenScreen: a compound library tested against
+Public screening data from EU-OPENSCREEN: a compound library tested against
 _Staphylococcus aureus_ ATCC 29213 at 50 uM, in duplicate. The readout is
 **mean % growth inhibition** - 100% means the bacteria did not grow at all, 0% means
-they grew as well as in an untreated well. Over six steps you will turn these
+they grew as well as in an untreated well. Over five steps you will turn these
 measurements into a model that can flag promising compounds in libraries nobody
 has screened.
 """.strip()
@@ -36,7 +36,7 @@ STEP_TEXT = {
     "understand_the_data": (
         "European Chemical Biology Database",
         "We have downloaded the available data from the ECBD related to the *S. aureus* "
-        "screening from EU OpenScreen. Read their information to understand what we are "
+        "screening from EU-OPENSCREEN. Read their information to understand what we are "
         "looking at.",
     ),
     "choose_a_cutoff": ("Where does active begin?", ""),

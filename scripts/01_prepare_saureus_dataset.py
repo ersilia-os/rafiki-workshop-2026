@@ -2,7 +2,7 @@
 
 Source
     eu-openscreen-antimicrobial-tasks/data/raw/00_extracted_assays/EOS300078.csv
-    EU-OpenScreen ECBD assay "MSSA ATCC 29213 Anti-Bacterial Assay": S. aureus
+    EU-OPENSCREEN ECBD assay "MSSA ATCC 29213 Anti-Bacterial Assay": S. aureus
     ATCC 29213, single point 50 uM, 2 replicates, 384-well, absorbance readout.
     Snapshot: file mtime 2026-07-30 (the ECBD dump carries no other version).
     The `value` column is mean % growth inhibition; 100% is total inhibition of

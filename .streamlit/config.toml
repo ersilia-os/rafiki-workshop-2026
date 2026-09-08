@@ -2,11 +2,12 @@
 base = "light"
 
 # Ersilia house web design system (ersilia-skills/skills/html-formatting).
-# Plum #50285A is identity and stays out of the chrome; periwinkle is interaction.
+# Plum #50285A is identity and stays out of the chrome: logo, favicon, and the
+# reference lines on the charts. Periwinkle carries every interaction.
 backgroundColor = "#FAFAFC"
 secondaryBackgroundColor = "#F4F4F8"
 textColor = "#2C3E50"
-primaryColor = "#50285A"   # plum: buttons and sliders. Periwinkle read too hot.
+primaryColor = "#6C5CE7"   # periwinkle: buttons, sliders, anything you can press.
 linkColor = "#6C5CE7"
 linkUnderline = false
 borderColor = "#E6E6EE"
@@ -18,7 +19,7 @@ buttonRadius = "0.5rem"
 baseFontSize = 15
 font = "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif"
 codeFont = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
-headingFontSizes = ["2rem", "1.5rem", "1.15rem", "1rem", "0.95rem", "0.85rem"]
+headingFontSizes = ["2rem", "1.5rem", "1.3rem", "1.05rem", "0.95rem", "0.85rem"]
 headingFontWeights = [700, 600, 600, 500, 500, 500]
 metricValueFontSize = "1.75rem"
 metricValueFontWeight = 600
@@ -41,7 +42,21 @@ chartSequentialColors = [
     "#492eb8",
 ]
 
+# st.info would otherwise use Streamlit's own blue, the one colour on screen
+# that belongs to no palette. Cobalt is the house data hue.
+blueColor = "#247dad"
 greenColor = "#3F9D6B"
 orangeColor = "#C98A1E"
 redColor = "#D9534F"
-violetColor = "#50285A"
+violetColor = "#6C5CE7"
+
+[theme.sidebar]
+# White, so the sidebar reads as a panel against the page ground - the same
+# surface/ground relationship the cards use.
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F4F4F8"
+
+[client]
+# Hide "Deploy" and the developer menu. Neither means anything to a workshop
+# attendee, and Streamlit's own dropdown cannot be themed to match the app.
+toolbarMode = "minimal"

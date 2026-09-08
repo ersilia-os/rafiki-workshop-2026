@@ -50,14 +50,15 @@ def available(url_path):
 def render(spec, number):
     """Shared header, then the step itself.
 
-    The badge repeats what the nav already says. That is deliberate: the tab
-    styling leans on Streamlit's own class names, and this does not.
+    One quiet line. The nav names the step; this adds the position within the
+    five, which the nav cannot show, and it survives the nav CSS going stale.
     """
     _, title, _, step = spec
     st.html(CSS)
     with st.container(key="eyebrow", horizontal=True, vertical_alignment="center"):
-        st.badge("Step {0} of {1} · {2}".format(number, len(PAGES), title), color="violet")
-        st.caption("{0} · {1}".format(TITLE, ORGANISATION))
+        st.caption(
+            "Step {0} of {1} · {2} · {3}".format(number, len(PAGES), title, TITLE)
+        )
         if UNLOCK_ALL:
             st.badge("all steps unlocked", color="orange", icon=":material/lock_open:")
     getattr(steps, step)()
@@ -71,10 +72,18 @@ def page(spec, number):
     )
 
 
+# Upper-left chrome, capped at 32px tall. Visible even with the sidebar collapsed.
+st.logo(WORDMARK, size="large", link="https://ersilia.io")
+
 with st.sidebar:
-    st.image(WORDMARK, width="stretch")
+    st.subheader(TITLE)
     st.write(intro)
-    st.caption("Questions: [hello@ersilia.io](mailto:hello@ersilia.io)")
+    st.divider()
+    st.caption(
+        "Brought to you by the [{0}](https://ersilia.io) — a tech-nonprofit fueling "
+        "sustainable research in the Global South.  \nQuestions: "
+        "[hello@ersilia.io](mailto:hello@ersilia.io)".format(ORGANISATION)
+    )
 
 if os.path.exists(data_path(".placeholder")):
     st.error(
@@ -92,7 +101,16 @@ if not os.path.exists(data_path(TRAINING_FILE)):
     )
     st.stop()
 
-st.navigation(
-    [page(spec, i + 1) for i, spec in enumerate(PAGES) if available(spec[0])],
-    position="top",
-).run()
+pages = [page(spec, i + 1) for i, spec in enumerate(PAGES) if available(spec[0])]
+nav = st.navigation(pages, position="top")
+
+# A step button unlocks the next page and parks its url_path here. It cannot
+# switch to it itself: st.switch_page only accepts a page that is already in
+# st.navigation, and on the click the unlock has not been seen yet. By this
+# run it has.
+goto = st.session_state.pop("goto", None)
+target = next((p for p in pages if p.url_path == goto), None)
+if target is not None:
+    st.switch_page(target)
+
+nav.run()

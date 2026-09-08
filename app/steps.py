@@ -34,7 +34,7 @@ from utils import (
 def heading(step):
     """Page heading and standfirst, both editable in info.py."""
     title, body = STEP_TEXT[step]
-    st.subheader(title)
+    st.header(title)
     if body:
         st.markdown(body)
 
@@ -55,30 +55,65 @@ def models_used(step):
 
 def hint(text):
     """Guidance on how to read a page. Not a caveat, not a question."""
-    with st.container(border=True, key="hint", horizontal=True, vertical_alignment="top"):
-        st.markdown(":material/lightbulb:")
+    with st.container(border=True, key="hint", horizontal=True, wrap=False,
+                      vertical_alignment="top"):
+        st.markdown(":green[:material/lightbulb:]", width="content")
         st.markdown(text)
 
 
 def careful(text):
-    """A caveat about the data. Deliberately not the questions box."""
-    with st.container(border=True, key="careful", horizontal=True, vertical_alignment="top"):
-        st.markdown(":material/priority_high:")
-        st.markdown("**Careful.** " + text)
+    """A caveat about the data. Same shape as the questions box, in red."""
+    with st.container(border=True, key="careful"):
+        st.caption("Careful")
+        st.markdown(text)
 
 
 def questions(items, key):
-    """Discussion prompts. style.py tints any container keyed `talk-*` mint."""
+    """Discussion prompts. style.py styles any container keyed `talk-*` amber."""
     with st.container(border=True, key="talk-" + key):
         st.caption("Talk it through")
         st.markdown("\n".join(items))
 
 
-def advance(key, label, icon=":material/arrow_forward:"):
-    """Unlock the next page. Remembered for the rest of the session once clicked."""
-    if not st.session_state.get(key):
-        st.session_state[key] = st.button(label, key="button_" + key, icon=icon, type="primary")
-    return st.session_state[key]
+def cutoff_in_use():
+    """Restate the step-1 cut-off on any page whose numbers depend on it.
+
+    The models on the Train page are fitted to labels the user chose two
+    pages back. Without this the AUROC has no stated basis, and changing the
+    cut-off silently changes every score.
+    """
+    dt = binarize(training_data(), st.session_state["cutoff"], HIGHER_IS_ACTIVE)
+    n_active = int(dt["Binary"].sum())
+    with st.container(border=True, key="cutoff-in-use"):
+        st.caption("Cut-off in use")
+        st.markdown(
+            "You set this on the **Data** page: compounds scoring **{0:.1f}** {1} on {2} "
+            "count as active. That is **{3:,}** actives against **{4:,}** inactives - "
+            "both models below are fitted to those labels.".format(
+                st.session_state["cutoff"],
+                "or above" if HIGHER_IS_ACTIVE else "or below",
+                READOUT_LABEL.lower(), n_active, len(dt) - n_active,
+            )
+        )
+
+
+def advance(key, url_path, label, icon=":material/arrow_forward:"):
+    """Unlock the next page and go there. Remembered for the rest of the session.
+
+    Setting the flag is not enough on its own. app.py builds the navigation
+    from these flags *before* it runs the page body that contains this button,
+    so on the click itself the new page is not in the nav yet and nothing
+    visibly happens - which is why the button used to need two clicks. The
+    rerun rebuilds the nav; `goto` asks app.py to land on the page the label
+    promises, once that page exists.
+    """
+    if st.session_state.get(key):
+        return True
+    if st.button(label, key="button_" + key, icon=icon, type="primary"):
+        st.session_state[key] = True
+        st.session_state["goto"] = url_path
+        st.rerun()
+    return False
 
 
 def training_data():
@@ -121,17 +156,22 @@ def choose_a_cutoff():
     df = training_data()
     heading("choose_a_cutoff")
 
-    with st.container(border=True):
-        cols = st.columns(5, vertical_alignment="center")
-        cols[0].metric("Mean", round(df[READOUT_COLUMN].mean(), 2))
-        cols[1].metric("Std deviation", round(df[READOUT_COLUMN].std(), 2))
-        cutoff = cols[2].slider(
+    with st.container(border=True, key="card-cutoff"):
+        # The slider is the control; the four numbers are what it produces. Side
+        # by side in one row of five, the slider reads as a fifth metric that has
+        # gone wrong - its label, value and track all sit on different baselines
+        # from the numbers. Stacked, the control leads and the numbers align.
+        cutoff = st.slider(
             "Activity cut-off", CUTOFF_MIN, CUTOFF_MAX,
             default_cutoff(df[READOUT_COLUMN]), CUTOFF_STEP, format="%.1f",
+            width=520,
         )
         dt = binarize(df, cutoff, HIGHER_IS_ACTIVE)
-        cols[3].metric("Actives", int(dt["Binary"].sum()))
-        cols[4].metric("Inactives", int(len(dt) - dt["Binary"].sum()))
+        stats = st.columns(4)
+        stats[0].metric("Mean", round(df[READOUT_COLUMN].mean(), 2))
+        stats[1].metric("Std deviation", round(df[READOUT_COLUMN].std(), 2))
+        stats[2].metric("Actives", int(dt["Binary"].sum()))
+        stats[3].metric("Inactives", int(len(dt) - dt["Binary"].sum()))
 
     cols = st.columns(2, gap="medium")
     cols[0].caption("Distribution of {0}".format(READOUT_LABEL.lower()))
@@ -174,10 +214,11 @@ def train_a_model():
 
     y = binary_labels()
     heading("train_a_model")
+    cutoff_in_use()
 
     cols = st.columns(len(DESCRIPTORS), gap="medium")
     for i, (label, filename) in enumerate(DESCRIPTORS.items()):
-        with cols[i].container(border=True):
+        with cols[i].container(border=True, key="card-descriptor-" + label):
             st.markdown("**{0}**".format(label))
             if st.button("Train a model", key="train_" + label, icon=":material/play_arrow:"):
                 if not os.path.exists(data_path(filename)):
@@ -205,7 +246,7 @@ def train_a_model():
     questions(q3, "q3")
     models_used("train_a_model")
     if st.session_state["models"]:
-        advance("step3", "Let's apply the models to a virtual screening exercise!")
+        advance("step3", "screen", "Let's apply the models to a virtual screening exercise!")
 
 
 # --- Step 4 ------------------------------------------------------------------
@@ -214,13 +255,12 @@ def screen_a_library():
     heading("screen_a_library")
     st.caption("Pick the library your group was assigned.")
 
-    cols = st.columns(len(LIBRARY_FILES))
-    for i, filename in enumerate(LIBRARY_FILES):
-        with cols[i].container(key="lib-{0}".format(i + 1)):
-            if st.button("Library {0}".format(i + 1), key="pick-{0}".format(i + 1),
-                         width="stretch"):
-                st.session_state["library"] = filename
-                st.rerun()
+    with st.container(horizontal=True, gap="small"):
+        for i, filename in enumerate(LIBRARY_FILES):
+            with st.container(key="lib-{0}".format(i + 1), width="content"):
+                if st.button("Library {0}".format(i + 1), key="pick-{0}".format(i + 1)):
+                    st.session_state["library"] = filename
+                    st.rerun()
 
     if not st.session_state.get("library"):
         return
@@ -257,7 +297,7 @@ def screen_a_library():
 
     questions(q4, "q4")
     models_used("screen_a_library")
-    advance("step4", "See everything we know about them")
+    advance("step4", "results", "See everything we know about them")
 
 
 # --- Step 5 ------------------------------------------------------------------
@@ -285,7 +325,7 @@ def the_full_picture():
     )
     questions(q5, "q5")
     models_used("the_full_picture")
-    advance("step5", "Let's expand one of the hits!")
+    advance("step5", "expand", "Let's expand one of the hits!")
 
 
 # --- Step 6 ------------------------------------------------------------------
@@ -297,11 +337,14 @@ def hit_expansion():
 
     # 1. The hit ---------------------------------------------------------------
     cols = st.columns([0.32, 0.68], gap="medium")
-    with cols[0].container(border=True):
+    with cols[0].container(border=True, key="card-parent"):
         st.image(draw_molecule(PARENT_SMILES, size=(300, 250)))
         st.markdown("**{0}**".format(PARENT_NAME))
-        st.metric("S. aureus activity", PARENT_SAUREUS)
-        st.metric("Efflux evasion", PARENT_EFFLUX)
+        # Side by side: stacked, the card ran twice the height of the two
+        # paragraphs beside it and left a hole in the right-hand column.
+        parent_stats = st.columns(2)
+        parent_stats[0].metric("S. aureus activity", PARENT_SAUREUS)
+        parent_stats[1].metric("Efflux evasion", PARENT_EFFLUX)
     cols[1].markdown(PARENT_BLURB)
     cols[1].markdown(
         "To improve it we asked two generative models for analogues. Neither invents "
@@ -314,7 +357,7 @@ def hit_expansion():
     st.subheader("Two generators, two different inputs")
     gen_cols = st.columns(len(GENERATORS), gap="medium")
     for col, generator in zip(gen_cols, GENERATORS):
-        with col.container(border=True):
+        with col.container(border=True, key="card-generator-" + generator["name"]):
             st.markdown("**{0}**  `{1}`".format(generator["name"], generator["model"]))
             st.caption(generator["input_label"])
             st.image(draw_molecule(generator["input_smiles"], size=(360, 230)))
@@ -323,7 +366,7 @@ def hit_expansion():
     for generator in GENERATORS:
         subset = analogues[analogues["generator"] == generator["name"]]
         top = subset.sort_values(ANALOGUE_X, ascending=False).head(N_GENERATOR_EXAMPLES)
-        with st.container(border=True):
+        with st.container(border=True, key="card-grid-" + generator["name"]):
             st.markdown("**{0}** - {1} analogues. Best {2} by predicted S. aureus "
                         "activity:".format(generator["name"], len(subset), N_GENERATOR_EXAMPLES))
             st.image(draw_molecules_grid(
@@ -351,7 +394,7 @@ def hit_expansion():
                     PARENT_SAUREUS, PARENT_EFFLUX, SAUREUS_THRESHOLD),
         width="stretch",
     )
-    with st.container(border=True):
+    with st.container(border=True, key="card-shortlist"):
         cols = st.columns(4)
         cols[0].metric("Analogues", len(analogues))
         cols[1].metric("Keep potency", int(analogues["clears_saureus_thr"].sum()))
@@ -369,7 +412,7 @@ def hit_expansion():
     cols = st.columns(len(GRAM_NEGATIVE), gap="medium")
     for col, (name, column, threshold, parent, model) in zip(cols, GRAM_NEGATIVE):
         clearing = int((analogues[column] >= threshold).sum())
-        with col.container(border=True):
+        with col.container(border=True, key="card-gramneg-" + name):
             st.markdown("**{0}**  `{1}`".format(name, model))
             st.caption("Threshold {0}. Platensimycin scores {1}.".format(threshold, parent))
             st.altair_chart(

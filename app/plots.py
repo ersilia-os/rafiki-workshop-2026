@@ -18,7 +18,7 @@ def _framed(chart):
 # for slot 6 and deliberately not used for "active" - an active compound is a
 # good outcome. Plum is the identity accent, used only for reference markers.
 PRIMARY = "#6d5de7"
-ACTIVE = "#e63745"
+ACTIVE = PRIMARY   # the interesting class takes slot 1, never the red slot
 NEUTRAL = "#C7C4D4"
 PLUM = "#50285A"
 GRID = "#DDDDDD"
