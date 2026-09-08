@@ -21,7 +21,8 @@ from info import (
     HIGHER_IS_ACTIVE, LIBRARY_FILES, LIBRARY_SMILES_COLUMN, N_TOP_HITS,
     CLOSING, CLOSING_TITLE, FORM_RESPONSES_URL, PICKS_FORM_URL,
     N_COLLECTIVE_PAGE, N_SCREEN_PREVIEW, READOUT_TABLE_LABEL,
-    RESPONSE_CANDIDATE_COLUMNS, SCREENING_SECONDS, SMILES_LABEL,
+    RESPONSE_CANDIDATE_COLUMNS, RESPONSE_NAME_COLUMN, SCREENING_SECONDS,
+    SMILES_LABEL,
     PARENT_EFFLUX, PARENT_NAME, PARENT_SAUREUS, PARENT_SMILES, PRETRAINED_FILE,
     PROJECTION_FILE,
     RAFIKI_IDS_FILE, RAFIKI_ID_LABEL,
@@ -86,7 +87,8 @@ def _filter_and_sort(table, columns, identifier):
     while the table showed something else.
 
     Laid out in three blocks - order, ranges, flags - because interleaving
-    sliders and toggles by column made a jumble.
+    sliders and toggles by column made a jumble. Always on show rather than
+    folded away: these are the page's controls, not a detail.
     """
     # A flag is a column whose values are only 0 and 1. Everything else takes a
     # range. Testing the other way round - a strict superset of {0, 1} - looks
@@ -95,7 +97,7 @@ def _filter_and_sort(table, columns, identifier):
     numeric = [c for c in columns if c not in flags]
     shown = table
 
-    with st.expander("Filter and sort the table", icon=":material/filter_list:"):
+    with st.container(border=True, key="card-filters"):
         order = st.columns(4)
         by = order[0].selectbox("Sort by", [identifier] + numeric + flags, key="sort_by")
         descending = order[1].segmented_control(
@@ -122,6 +124,12 @@ def _filter_and_sort(table, columns, identifier):
                 shown = shown[shown[name] == 0]
 
     return shown.sort_values(by, ascending=not descending)
+
+
+def _tidy_float(value):
+    """At most four decimals and no padded zeros - what st.dataframe shows.
+    st.table would otherwise render a molecular weight as 270.1000."""
+    return "" if np.isnan(value) else "{:g}".format(round(float(value), 4))
 
 
 def _run_predictions():
@@ -492,7 +500,7 @@ def the_full_picture():
         "Submit your five candidates", PICKS_FORM_URL,
         icon=":material/open_in_new:", type="primary",
     )
-    advance("step5", "collective", "See what everyone else picked", kind="secondary")
+    advance("step5", "collective", "See what everyone else picked")
     models_used("the_full_picture")
 
 
@@ -530,8 +538,12 @@ def collective_picks():
         return
 
     # One row per nomination, so the same compound from two groups counts twice.
+    # Melting alone stacks column by column; sorting back on the row it came from
+    # puts the nominations in the order they were submitted in.
     present = [c for c in RESPONSE_CANDIDATE_COLUMNS if c in responses.columns]
-    picks = responses.melt(value_vars=present, value_name="entry")["entry"].dropna()
+    picks = (responses[present].reset_index(names="submission")
+             .melt(id_vars="submission", value_vars=present, value_name="entry")
+             .sort_values("submission", kind="stable")["entry"].dropna())
     picks = picks.astype(str).str.strip()
     picks = picks[picks != ""]
 
@@ -559,8 +571,11 @@ def collective_picks():
         st.warning("None of the entries are identifiers we issued.", icon=":material/help:")
         return
 
-    counts = (resolved.value_counts().rename_axis(RAFIKI_ID_LABEL)
-              .reset_index(name="Nominations"))
+    # First submitted, first listed - the tally is a column, not the ordering.
+    tally = resolved.value_counts()
+    counts = resolved.drop_duplicates().rename(RAFIKI_ID_LABEL).to_frame()
+    counts["Nominations"] = counts[RAFIKI_ID_LABEL].map(tally)
+    counts = counts.reset_index(drop=True)
     counts = counts.merge(ids, on=RAFIKI_ID_LABEL, how="left")
     counts = counts.merge(catalogue, on="smiles", how="left")
 
@@ -578,11 +593,16 @@ def collective_picks():
         )
 
     # The Profiling table over the nominated set, with the tally in front of it.
-    st.dataframe(
-        counts[["Nominations", RAFIKI_ID_LABEL, "smiles", ACTIVITY_MODEL_LABEL]
-               + list(COLUMN_LABELS.values())].rename(columns={"smiles": SMILES_LABEL}),
-        height=320, hide_index=True,
-    )
+    # st.table rather than st.dataframe: the order here is the order people
+    # submitted in, and a sortable header would let a click break the
+    # correspondence between this table and the structures underneath it.
+    nominated = (counts[["Nominations", RAFIKI_ID_LABEL, "smiles", ACTIVITY_MODEL_LABEL]
+                        + list(COLUMN_LABELS.values())]
+                 .rename(columns={"smiles": SMILES_LABEL}))
+    with st.container(height=320, key="card-nominated"):
+        st.table(nominated.style.format(
+            {c: _tidy_float for c in nominated.columns
+             if nominated[c].dtype.kind == "f"}))
 
     pages = max(1, math.ceil(len(counts) / N_COLLECTIVE_PAGE))
     page = 1
@@ -592,7 +612,7 @@ def collective_picks():
         page = st.columns(4)[0].select_slider(
             "Page", list(range(1, pages + 1)), value=1, key="collective_page")
     window = counts.iloc[(page - 1) * N_COLLECTIVE_PAGE:page * N_COLLECTIVE_PAGE]
-    st.caption("Most-picked first. Showing {0}-{1} of {2}.".format(
+    st.caption("In the order they were submitted. Showing {0}-{1} of {2}.".format(
         (page - 1) * N_COLLECTIVE_PAGE + 1,
         (page - 1) * N_COLLECTIVE_PAGE + len(window), len(counts)))
     draw_molecules_grid(
@@ -602,8 +622,11 @@ def collective_picks():
         per_row=8, size=(170, 150),
     )
 
-    with st.expander("Who submitted what", icon=":material/list:"):
-        st.dataframe(responses, hide_index=True)
+    with st.expander("See submissions", icon=":material/list:"):
+        st.dataframe(
+            responses.drop(columns=[RESPONSE_NAME_COLUMN], errors="ignore"),
+            hide_index=True,
+        )
 
     questions(q7, "q7")
     advance("step6", "expand", "Hit identified!")

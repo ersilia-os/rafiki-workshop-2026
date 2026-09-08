@@ -135,6 +135,29 @@ a[aria-current="page"] {
     background: %(surface)s !important;
     box-shadow: 0 1px 2px rgba(44, 62, 80, .04);
 }
+/* --- The static nominations table ----------------------------------------
+   st.table is plain HTML, so unlike st.dataframe it neither pins its header
+   nor stops a short cell wrapping when a neighbouring SMILES is long. Both
+   are put back here; only the two label columns are held on one line, so the
+   SMILES still wraps rather than pushing the scores out of view. The rule
+   names the markdown paragraph inside the cell, not the cell: Streamlit sets
+   white-space on that paragraph, so styling the cell alone does nothing.
+
+   Careful with the wording here - this block is sanitised before it reaches
+   the page, and a literal HTML tag anywhere in it, comments included, makes
+   the sanitiser drop the whole stylesheet without a word. */
+[class*="st-key-card-nominated"] thead th {
+    position: sticky;
+    top: 0;
+    background: %(surface)s;
+    z-index: 1;
+}
+[class*="st-key-card-nominated"] th:nth-child(1) p,
+[class*="st-key-card-nominated"] th:nth-child(2) p,
+[class*="st-key-card-nominated"] td:nth-child(1) p,
+[class*="st-key-card-nominated"] td:nth-child(2) p {
+    white-space: nowrap;
+}
 %(callouts)s
 /* --- Step marker ---------------------------------------------------------
    A belt-and-braces "where am I", independent of the nav styling above. */
