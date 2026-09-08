@@ -6,10 +6,14 @@
 # 2026-08-31, so that repository's Release file is permanently expired: any
 # packages.txt makes apt-get exit non-zero and the build aborts before pip runs.
 #
-# rdkit's wheel needs libXrender and libXext at import time. Community Cloud's
-# image is Debian trixie, and a full trixie image provides both, so no system
-# packages are needed. If the app ever fails to start with
-# "ImportError: libXrender.so.1", that assumption has broken.
+# Confirmed 2026-09-08 by putting one back and reading the build log: apt-get
+# hits an expired bullseye-security Release file, returns non-zero, and Cloud
+# aborts the build before pip runs. packages.txt cannot work here at all.
+#
+# rdkit's wheel needs libXrender.so.1 at import time and Cloud's Python 3.14
+# image does not have it, so `from rdkit.Chem import Draw` fails on import.
+# rdkit.Chem itself is fine without X11 - it is only the Draw module. A fix for
+# the drawing is in progress; until then the app cannot start.
 #
 # Versions resolved on linux-64.
 streamlit==1.63.0
