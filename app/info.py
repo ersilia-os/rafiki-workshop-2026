@@ -64,6 +64,18 @@ SAMPLING_CAVEAT = (
     "teaching set, not a basis for any claim about how often a screen hits."
 )
 
+# The last thing in the workshop: a closing word and the feedback form.
+FEEDBACK_FORM_URL = "https://forms.gle/RFuF4bn3bFZudM5G9"
+CLOSING_TITLE = "That is the whole loop"
+CLOSING = (
+    "You started from a plate of measurements and decided what counts as active. You "
+    "trained two models on two different ways of describing a molecule, and let one of "
+    "them rank a thousand compounds nobody in the room had screened. You looked past "
+    "activity at everything else that can stop a compound, and then asked a generative "
+    "model for better versions of a hit. That is a drug discovery cycle, in miniature - "
+    "and every model you used is free, open, and in the Ersilia Model Hub."
+)
+
 MODEL_HUB_URL = "https://ersilia.io/model-hub"
 
 # Every Ersilia model behind a number in this app. Titles are the models' own.

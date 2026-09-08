@@ -15,6 +15,7 @@ from info import (
     GRAM_NEGATIVE, N_GENERATOR_EXAMPLES, PARENT_BLURB,
     COLUMN_LABELS, CUTOFF_DEFAULT, CUTOFF_MAX, CUTOFF_MIN, CUTOFF_STEP, DESCRIPTORS,
     HIGHER_IS_ACTIVE, LIBRARY_FILES, LIBRARY_SMILES_COLUMN, N_TOP_HITS,
+    CLOSING, CLOSING_TITLE, FEEDBACK_FORM_URL,
     PARENT_EFFLUX, PARENT_NAME, PARENT_SAUREUS, PARENT_SMILES, PROJECTION_FILE,
     RAFIKI_IDS_FILE, RAFIKI_ID_LABEL,
     PROJECTION_X, PROJECTION_Y, READOUT_COLUMN, READOUT_LABEL, SAUREUS_THRESHOLD,
@@ -437,3 +438,13 @@ def hit_expansion():
 
     questions(q6, "q6")
     models_used("hit_expansion")
+
+    # The last step, so it ends the workshop rather than handing on to another
+    # page. advance() is for unlocking a next step and there is not one.
+    st.divider()
+    st.subheader(CLOSING_TITLE)
+    st.markdown(CLOSING)
+    st.link_button(
+        "Tell us how it went", FEEDBACK_FORM_URL,
+        icon=":material/open_in_new:", type="primary",
+    )
