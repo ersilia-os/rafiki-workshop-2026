@@ -815,6 +815,11 @@ def hit_expansion():
 
     # The last step, so it ends the workshop rather than handing on to another
     # page. advance() is for unlocking a next step and there is not one.
-    st.divider()
-    st.subheader(CLOSING_TITLE)
-    st.markdown(CLOSING)
+    # A callout of its own, in the app's accent: as plain body text the
+    # sign-off looked like one more paragraph and the workshop trailed off.
+    with st.container(border=True, key="closing", horizontal=True, wrap=False,
+                      vertical_alignment="top"):
+        st.markdown(":violet[:material/celebration:]", width="content")
+        with st.container():
+            st.subheader(CLOSING_TITLE)
+            st.markdown(CLOSING)

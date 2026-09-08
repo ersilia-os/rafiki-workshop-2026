@@ -50,8 +50,8 @@ LIBRARY_RULES = "".join("""
 }}
 """.format(i=i + 1, c=c) for i, c in enumerate(LIBRARY_COLOURS))
 
-# The three callouts share one shape - recessed panel, hue only on the left
-# edge and the glyph. Three pastel fills read as three unrelated components.
+# The callouts share one shape - recessed panel, hue only on the left edge and
+# the glyph. Three pastel fills read as three unrelated components.
 # The glyphs themselves are coloured in steps.py with Streamlit's own :red[]
 # / :green[] directives, which resolve to the same theme colours as the
 # edges here - a markdown :material/ icon carries no test id to hook.
@@ -70,6 +70,7 @@ CALLOUT_RULES = "".join("""
 """.format(sel=sel, hue=hue, bg=RECESSED, edge=EDGE) for sel, hue in (
     (".st-key-hint", GUIDE),
     ('[class*="st-key-talk"]', DISCUSS),
+    (".st-key-closing", PERIWINKLE),   # the sign-off, on the last page only
 ))
 
 CSS = """
