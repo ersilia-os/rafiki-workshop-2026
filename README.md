@@ -37,6 +37,13 @@ pip install -r requirements.txt
 streamlit run app/app.py
 ```
 
+Streamlit Community Cloud picks up `environment.yml` and installs from conda-forge.
+That is deliberate: rdkit's PyPI wheel links against libXrender and libXext, which would
+need a `packages.txt` apt step, and Community Cloud's apt has been failing on an expired
+Debian release file. conda-forge's rdkit brings those libraries itself, so no apt is
+needed. `requirements.txt` still drives the Docker image, whose bullseye base already has
+the X11 libraries.
+
 `app/info.py` is the only file to edit to change the dataset, the descriptors, the models or the
 workshop text.
 

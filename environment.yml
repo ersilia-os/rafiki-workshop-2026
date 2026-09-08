@@ -1,0 +1,19 @@
+## Used by Streamlit Community Cloud, which prefers environment.yml over
+## requirements.txt. Conda is used rather than pip because rdkit's PyPI wheel
+## links against libXrender/libXext, which would need packages.txt and an
+## apt-get step; conda-forge's rdkit brings those libraries with it.
+## requirements.txt is kept for the Docker/DigitalOcean path.
+name: rafiki-workshop-2026
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - streamlit
+  - pandas
+  - numpy
+  - rdkit
+  - altair
+  - scikit-learn
+  - pip
+  - pip:
+      - lolP
