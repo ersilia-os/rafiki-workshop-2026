@@ -31,7 +31,8 @@ UNLOCKS = {
     "train": "cutoff_set",
     "screen": "step3",
     "profiling": "step4",
-    "expand": "step5",
+    "collective": "step5",
+    "expand": "step6",
 }
 
 

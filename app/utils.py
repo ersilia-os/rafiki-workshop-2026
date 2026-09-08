@@ -1,4 +1,6 @@
 import os
+import re
+from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
@@ -72,6 +74,36 @@ def load_library(filename):
 
 def load_rafiki_ids(filename):
     return pd.read_csv(data_path(filename))
+
+
+def load_responses(url):
+    """The published form responses, read live from Google Sheets.
+
+    Returned with the moment it was fetched, because the sheet changes while the
+    workshop is running and a stale table with no timestamp is worse than none.
+    """
+    return pd.read_csv(url, sep="\t"), datetime.now(timezone.utc)
+
+
+def normalise_rafiki_id(text):
+    """Read a hand-typed identifier as RAFIKI-0000, or None if it is not one.
+
+    Participants type these into a form, so accept what they plausibly write:
+    lower case, missing prefix, missing zero padding, stray whitespace.
+    """
+    if text is None:
+        return None
+    match = re.fullmatch(r"(?:RAFIKI[\s_-]*)?0*(\d{1,4})", str(text).strip().upper())
+    return "RAFIKI-{0:04d}".format(int(match.group(1))) if match else None
+
+
+def load_catalogue(library_filenames, smiles_column, activity_column):
+    """Every library in one frame, for looking a compound up without knowing
+    which group had it."""
+    frames = [pd.read_csv(data_path(f))[[smiles_column, activity_column]]
+              for f in library_filenames]
+    catalogue = pd.concat(frames, ignore_index=True)
+    return catalogue.drop_duplicates(subset=[smiles_column])
 
 
 def load_analogues(filename):

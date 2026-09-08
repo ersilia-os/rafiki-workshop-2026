@@ -7,7 +7,8 @@ import streamlit as st
 
 from cache import (
     cached_analogues, cached_descriptors, cached_library, cached_projection,
-    cached_rafiki_ids, cached_training_data,
+    cached_catalogue, cached_rafiki_ids, cached_responses, cached_training_data,
+    clear_responses,
 )
 from info import (
     ACTIVITY_MODEL_COLUMN, ACTIVITY_MODEL_LABEL, ANALOGUES_FILE, ANALOGUE_GENERATORS,
@@ -15,13 +16,14 @@ from info import (
     GRAM_NEGATIVE, N_GENERATOR_EXAMPLES, PARENT_BLURB,
     COLUMN_LABELS, CUTOFF_DEFAULT, CUTOFF_MAX, CUTOFF_MIN, CUTOFF_STEP, DESCRIPTORS,
     HIGHER_IS_ACTIVE, LIBRARY_FILES, LIBRARY_SMILES_COLUMN, N_TOP_HITS,
-    CLOSING, CLOSING_TITLE, FEEDBACK_FORM_URL,
+    CLOSING, CLOSING_TITLE, FORM_RESPONSES_URL, PICKS_FORM_URL,
+    N_COLLECTIVE_SHOWN, RESPONSE_CANDIDATE_COLUMNS, RESPONSE_NAME_COLUMN,
     PARENT_EFFLUX, PARENT_NAME, PARENT_SAUREUS, PARENT_SMILES, PROJECTION_FILE,
     RAFIKI_IDS_FILE, RAFIKI_ID_LABEL,
     PROJECTION_X, PROJECTION_Y, READOUT_COLUMN, READOUT_LABEL, SAUREUS_THRESHOLD,
     MODELS, MODEL_HUB_URL, RESULTS_HINT, SAMPLING_CAVEAT, SMILES_COLUMN, STEP_MODELS, STEP_TEXT,
     TRAINING_FILE, ECBD_ASSAY_URL,
-    q1, q2, q3, q4, q5, q6,
+    q1, q2, q3, q4, q5, q6, q7,
 )
 from plots import (
     plot_chemical_space, plot_fold_scores, plot_pareto, plot_readout_histogram, plot_roc,
@@ -29,8 +31,8 @@ from plots import (
 )
 from molecules import draw_molecule, draw_molecules_grid
 from utils import (
-    binarize, data_path, descriptor_preview, interpolate_roc_curves, screen_scale,
-    train_classifier,
+    binarize, data_path, descriptor_preview, interpolate_roc_curves,
+    normalise_rafiki_id, screen_scale, train_classifier,
 )
 
 
@@ -338,8 +340,118 @@ def the_full_picture():
         mime="text/csv", icon=":material/download:",
     )
     questions(q5, "q5")
+    st.link_button(
+        "Submit your five candidates", PICKS_FORM_URL,
+        icon=":material/open_in_new:", type="primary",
+    )
     models_used("the_full_picture")
-    advance("step5", "expand", "Let's expand one of the hits!")
+    advance("step5", "collective", "See what everyone else picked")
+
+
+def collective_picks():
+    heading("collective_picks")
+
+    with st.container(horizontal=True, wrap=False, vertical_alignment="center"):
+        if st.button("Collect responses", icon=":material/refresh:", type="primary"):
+            clear_responses()
+            st.rerun()
+        placeholder = st.empty()
+
+    try:
+        responses, fetched_at = cached_responses(FORM_RESPONSES_URL)
+    except Exception as error:                        # network, or the sheet moved
+        placeholder.empty()
+        st.warning(
+            "Could not read the responses sheet. {0}".format(error),
+            icon=":material/cloud_off:",
+        )
+        return
+    placeholder.caption(
+        "{0} response{1}, read at {2} UTC".format(
+            len(responses), "" if len(responses) == 1 else "s",
+            fetched_at.strftime("%H:%M:%S"),
+        )
+    )
+
+    if responses.empty:
+        st.info(
+            "Nobody has submitted yet. Fill the form in on the Profiling step, then "
+            "press Collect responses.",
+            icon=":material/hourglass_empty:",
+        )
+        return
+
+    # One row per nomination, so the same compound from two groups counts twice.
+    present = [c for c in RESPONSE_CANDIDATE_COLUMNS if c in responses.columns]
+    picks = responses.melt(value_vars=present, value_name="entry")["entry"].dropna()
+    picks = picks.astype(str).str.strip()
+    picks = picks[picks != ""]
+
+    ids = cached_rafiki_ids(RAFIKI_IDS_FILE).rename(columns={"rafiki_id": RAFIKI_ID_LABEL})
+    catalogue = cached_catalogue(
+        LIBRARY_FILES, LIBRARY_SMILES_COLUMN, ACTIVITY_MODEL_COLUMN
+    ).rename(columns={LIBRARY_SMILES_COLUMN: "smiles",
+                      ACTIVITY_MODEL_COLUMN: ACTIVITY_MODEL_LABEL})
+
+    # Valid means two things: it reads as an identifier, and it is one we issued.
+    # RAFIKI-9999 passes the first test and fails the second, so both are checked
+    # against the catalogue rather than the pattern alone. Anything else is
+    # skipped and reported, never guessed at.
+    issued = set(ids[RAFIKI_ID_LABEL])
+    resolved = picks.map(normalise_rafiki_id)
+    resolved = resolved.where(resolved.isin(issued))
+    rejected = sorted(set(picks[resolved.isna()]))
+    resolved = resolved.dropna()
+
+    if resolved.empty:
+        st.warning("None of the entries are identifiers we issued.", icon=":material/help:")
+        return
+
+    counts = (resolved.value_counts().rename_axis(RAFIKI_ID_LABEL)
+              .reset_index(name="Nominations"))
+    counts = counts.merge(ids, on=RAFIKI_ID_LABEL, how="left")
+    counts = counts.merge(catalogue, on="smiles", how="left")
+
+    stats = st.columns(4)
+    stats[0].metric("Responses", len(responses))
+    stats[1].metric("Nominations", int(len(resolved)))
+    stats[2].metric("Distinct compounds", int(counts[RAFIKI_ID_LABEL].nunique()))
+    stats[3].metric(
+        "Picked more than once", int((counts["Nominations"] > 1).sum()),
+        help="Compounds two or more groups arrived at independently.",
+    )
+
+    if rejected:
+        st.warning(
+            "Skipped, because these are not identifiers we issued: {0}".format(
+                ", ".join(rejected[:12]) + ("..." if len(rejected) > 12 else "")
+            ),
+            icon=":material/help:",
+        )
+
+    shown = counts.head(N_COLLECTIVE_SHOWN)
+    st.caption(
+        "Every compound the room nominated, most-picked first."
+        + ("" if len(shown) == len(counts)
+           else " Showing the first {0} of {1}.".format(len(shown), len(counts)))
+    )
+    draw_molecules_grid(
+        list(shown["smiles"]),
+        ["{0} · picked {1}x".format(r[RAFIKI_ID_LABEL], r["Nominations"])
+         for _, r in shown.iterrows()],
+        per_row=5, size=(190, 165),
+    )
+
+    st.dataframe(
+        counts[[RAFIKI_ID_LABEL, "Nominations", ACTIVITY_MODEL_LABEL, "smiles"]],
+        height=320, hide_index=True,
+    )
+
+    with st.expander("Who submitted what", icon=":material/list:"):
+        st.dataframe(responses, hide_index=True)
+
+    questions(q7, "q7")
+    advance("step6", "expand", "Let's expand one of the hits!")
 
 
 # --- Step 6 ------------------------------------------------------------------
@@ -444,7 +556,3 @@ def hit_expansion():
     st.divider()
     st.subheader(CLOSING_TITLE)
     st.markdown(CLOSING)
-    st.link_button(
-        "Tell us how it went", FEEDBACK_FORM_URL,
-        icon=":material/open_in_new:", type="primary",
-    )

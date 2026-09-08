@@ -13,6 +13,7 @@ PAGES = [
     ("train", "Train", ":material/model_training:", "train_a_model"),
     ("screen", "Screen", ":material/search:", "screen_a_library"),
     ("profiling", "Profiling", ":material/list_alt:", "the_full_picture"),
+    ("collective", "Collective", ":material/groups:", "collective_picks"),
     ("expand", "Expand", ":material/hub:", "hit_expansion"),
 ]
 
@@ -45,6 +46,11 @@ STEP_TEXT = {
     "train_a_model": ("Two ways to describe a molecule", ""),
     "screen_a_library": ("A thousand compounds you have never seen", ""),
     "the_full_picture": ("Activity is only the first column", ""),
+    "collective_picks": (
+        "What did the room choose?",
+        "Every group nominated five compounds. This is all of them together - which is a "
+        "small, real version of how a project actually decides what to make.",
+    ),
     "hit_expansion": ("Can you beat the natural product?", ""),
 }
 
@@ -64,8 +70,25 @@ SAMPLING_CAVEAT = (
     "teaching set, not a basis for any claim about how often a screen hits."
 )
 
-# The last thing in the workshop: a closing word and the feedback form.
-FEEDBACK_FORM_URL = "https://forms.gle/RFuF4bn3bFZudM5G9"
+# The form the room fills in on the Profiling step, and the sheet it publishes
+# to. The sheet is read live, on demand - see steps.collective_picks.
+# Set RAFIKI_RESPONSES_URL to point a later edition at its own sheet, or at a
+# local .tsv to work on this page offline.
+FORM_RESPONSES_URL = os.environ.get(
+    "RAFIKI_RESPONSES_URL",
+    "https://docs.google.com/spreadsheets/d/e/2PACX-1vQCwmm4HWb3xYvHfTXdYFBUsk57BQMDTD"
+    "w0xKP1AqNWH3rG5x8BexDPMsEctT1Uav5kjeU-y974JvPk/pub"
+    "?gid=478356490&single=true&output=tsv",
+)
+RESPONSE_NAME_COLUMN = "Your name"
+# Cap on the structure grid, so a busy sheet cannot render hundreds of molecules.
+N_COLLECTIVE_SHOWN = 40
+RESPONSE_CANDIDATE_COLUMNS = ["Candidate {0}".format(i) for i in range(1, 6)]
+
+# Where the room submits its five candidates. The sheet above is what this
+# form writes into, and the Collective step reads back.
+PICKS_FORM_URL = "https://forms.gle/RFuF4bn3bFZudM5G9"
+# The last thing in the workshop.
 CLOSING_TITLE = "That is the whole loop"
 CLOSING = (
     "You started from a plate of measurements and decided what counts as active. You "
@@ -301,6 +324,12 @@ q5 = [
     "- Activity is not enough. What else in this table would stop you?",
     "- A compound is predicted active but flags PAINS. What now?",
     "- You can synthesise 5 compounds, which ones and why?",
+]
+
+q7 = [
+    "- Did the room converge on the same compounds, or spread out?",
+    "- If two groups picked the same compound, did they have the same reason?",
+    "- Nobody can make all of these. Which five would you defend to a chemist?",
 ]
 
 q6 = [

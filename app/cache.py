@@ -10,7 +10,7 @@ import streamlit as st
 
 from utils import (
     data_path, load_analogues, load_descriptors, load_library, load_projection,
-    load_rafiki_ids, load_training_data,
+    load_catalogue, load_rafiki_ids, load_responses, load_training_data,
 )
 
 
@@ -62,6 +62,31 @@ def cached_library(filename):
 
 def cached_projection(filename):
     return _projection(filename, data_version(filename))
+
+
+@st.cache_data(show_spinner=False)
+def _responses(url):
+    return load_responses(url)
+
+
+@st.cache_data(show_spinner=False)
+def _catalogue(filenames, smiles_column, activity_column, version):
+    return load_catalogue(list(filenames), smiles_column, activity_column)
+
+
+def cached_responses(url):
+    """Cached until someone asks for it again - see clear_responses."""
+    return _responses(url)
+
+
+def clear_responses():
+    """Drop the cached sheet so the next read goes back to Google."""
+    _responses.clear()
+
+
+def cached_catalogue(filenames, smiles_column, activity_column):
+    version = max(data_version(f) for f in filenames)
+    return _catalogue(tuple(filenames), smiles_column, activity_column, version)
 
 
 def cached_rafiki_ids(filename):
