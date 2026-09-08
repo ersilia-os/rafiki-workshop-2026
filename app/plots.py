@@ -203,11 +203,13 @@ def plot_roc(tprs_df):
     return _framed(chart)
 
 
-def plot_pareto(df, x_column, y_column, shortlist_column, parent_x, parent_y, x_threshold):
+def plot_pareto(df, x_column, y_column, shortlist_column, parent_x, parent_y,
+                x_threshold, y_threshold):
     """Two objectives at once: keep the potency, gain the permeability.
 
-    The parent sits at the crossing of the two dashed lines, so the shortlist is
-    everything up and to the right of it.
+    Both dashed lines are set by the reader, and the selection is everything up
+    and to the right of where they cross. The parent is drawn as a diamond, so
+    the lines can be moved off it and it can still be found.
     """
     points = (
         alt.Chart(df)
@@ -220,13 +222,13 @@ def plot_pareto(df, x_column, y_column, shortlist_column, parent_x, parent_y, x_
                 scale=alt.Scale(domain=[False, True], range=[NEUTRAL, PRIMARY]),
                 legend=alt.Legend(
                     title=None, orient="bottom",
-                    labelExpr="if(datum.label == 'true', 'Keeps potency, gains permeability', 'Everything else')",
+                    labelExpr="if(datum.label == 'true', 'Selected', 'Everything else')",
                 ),
             ),
             tooltip=["generator", x_column, y_column, "rdkit_mw"],
         )
     )
-    rules = alt.Chart(pd.DataFrame({"x": [x_threshold], "y": [parent_y]}))
+    rules = alt.Chart(pd.DataFrame({"x": [x_threshold], "y": [y_threshold]}))
     vline = rules.mark_rule(strokeDash=[4, 4], color=PLUM).encode(x="x:Q")
     hline = rules.mark_rule(strokeDash=[4, 4], color=PLUM).encode(y="y:Q")
     parent = (

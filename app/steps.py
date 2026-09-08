@@ -15,8 +15,9 @@ from cache import (
 )
 from info import (
     ACTIVITY_MODEL_COLUMN, ACTIVITY_MODEL_LABEL, ANALOGUES_FILE, ANALOGUE_GENERATORS,
-    ANALOGUE_SHORTLIST, ANALOGUE_X, ANALOGUE_Y, EFFLUX_BLURB, GENERATORS,
+    ANALOGUE_X, ANALOGUE_Y, EFFLUX_BLURB, EFFLUX_MODEL, GENERATORS,
     GRAM_NEGATIVE, N_GENERATOR_EXAMPLES, PARENT_BLURB,
+    PARENT_DRAWING_CREDIT, PARENT_DRAWING_FILE,
     COLUMN_LABELS, CUTOFF_DEFAULT, CUTOFF_MAX, CUTOFF_MIN, CUTOFF_STEP, DESCRIPTORS,
     HIGHER_IS_ACTIVE, LIBRARY_FILES, LIBRARY_SMILES_COLUMN, N_TOP_HITS,
     CLOSING, CLOSING_TITLE, FORM_RESPONSES_URL, PICKS_FORM_URL,
@@ -126,22 +127,34 @@ def _filter_and_sort(table, columns, identifier):
     return shown.sort_values(by, ascending=not descending)
 
 
+def _floor(value, step=0.01):
+    return math.floor(float(value) / step) * step
+
+
+def _ceil(value, step=0.01):
+    return math.ceil(float(value) / step) * step
+
+
 def _tidy_float(value):
     """At most four decimals and no padded zeros - what st.dataframe shows.
     st.table would otherwise render a molecular weight as 270.1000."""
     return "" if np.isnan(value) else "{:g}".format(round(float(value), 4))
 
 
-def _run_predictions():
-    """Play out the screening run. The scores themselves are columns the library
-    already carries; this is the pacing, so a room sees it happen."""
-    bar = st.progress(0.0, text="{0} · {1}".format(
-        ACTIVITY_MODEL_COLUMN.split("_")[0], ACTIVITY_MODEL_LABEL))
+def _progress(label):
+    """A model running over a set of compounds, at a pace a room can follow.
+    The scores themselves are columns the file already carries."""
+    bar = st.progress(0.0, text=label)
     ticks = 20
     for i in range(ticks):
         time.sleep(SCREENING_SECONDS / ticks)
         bar.progress((i + 1) / ticks)
     bar.empty()
+
+
+def _run_predictions():
+    _progress("{0} · {1}".format(
+        ACTIVITY_MODEL_COLUMN.split("_")[0], ACTIVITY_MODEL_LABEL))
 
 
 def _method_lines(label, result, meta):
@@ -634,76 +647,119 @@ def collective_picks():
 
 # --- Step 6 ------------------------------------------------------------------
 
+def _parent_drawing():
+    """The hand-drawn skeletal formula, as SVG text. st.image renders an SVG
+    string directly, which keeps it sharp and needs no static-file URL."""
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "static", PARENT_DRAWING_FILE)
+
+
+def _sample_analogues(subset, name):
+    """A handful of analogues at random, reshuffled only when this generator's
+    own button is pressed - one unseeded sample would reshuffle both grids."""
+    seed = st.session_state.setdefault("shuffle_" + name, 0)
+    return subset.sample(min(N_GENERATOR_EXAMPLES, len(subset)), random_state=seed)
+
+
 def hit_expansion():
     heading("hit_expansion")
     analogues = cached_analogues(ANALOGUES_FILE)
     analogues = analogues[analogues["generator"].isin(ANALOGUE_GENERATORS)]
 
     # 1. The hit ---------------------------------------------------------------
-    cols = st.columns([0.32, 0.68], gap="medium")
+    cols = st.columns([0.38, 0.62], gap="medium")
     with cols[0].container(border=True, key="card-parent"):
-        draw_molecule(PARENT_SMILES, size=(300, 250))
+        # Two views of one molecule: the drawn formula reads better on a
+        # projector, the computed one is what every other structure here is.
+        view = st.segmented_control(
+            "View", ["Drawn", "Computed"], default="Drawn",
+            key="parent_view", label_visibility="collapsed",
+        )
+        if view == "Computed":
+            draw_molecule(PARENT_SMILES, size=(300, 250))
+        else:
+            st.image(open(_parent_drawing()).read(), width="stretch")
         st.markdown("**{0}**".format(PARENT_NAME))
-        # Side by side: stacked, the card ran twice the height of the two
-        # paragraphs beside it and left a hole in the right-hand column.
-        parent_stats = st.columns(2)
-        parent_stats[0].metric("S. aureus activity", PARENT_SAUREUS)
-        parent_stats[1].metric("Efflux evasion", PARENT_EFFLUX)
+        st.metric("Predicted S. aureus activity", PARENT_SAUREUS)
+        if view != "Computed":
+            st.caption(PARENT_DRAWING_CREDIT)
     cols[1].markdown(PARENT_BLURB)
     cols[1].markdown(
-        "To improve it we asked two generative models for analogues. Neither invents "
-        "molecules freely: each is given a starting point and a rule about what it may "
-        "change. **What you give them decides what you get back.**"
+        "To improve it we can ask generative chemistry models for analogues."
     )
 
     # 2. The generators --------------------------------------------------------
     st.divider()
-    st.subheader("Two generators, two different inputs")
+    st.subheader("Two generators from the Ersilia Model Hub")
     gen_cols = st.columns(len(GENERATORS), gap="medium")
     for col, generator in zip(gen_cols, GENERATORS):
         with col.container(border=True, key="card-generator-" + generator["name"]):
             st.markdown("**{0}**  `{1}`".format(generator["name"], generator["model"]))
-            st.caption(generator["input_label"])
-            draw_molecule(generator["input_smiles"], size=(360, 230))
-            st.caption(generator["text"])
+            st.markdown(generator["text"])
 
     for generator in GENERATORS:
-        subset = analogues[analogues["generator"] == generator["name"]]
-        top = subset.sort_values(ANALOGUE_X, ascending=False).head(N_GENERATOR_EXAMPLES)
-        with st.container(border=True, key="card-grid-" + generator["name"]):
-            st.markdown("**{0}** - {1} analogues. Best {2} by predicted S. aureus "
-                        "activity:".format(generator["name"], len(subset), N_GENERATOR_EXAMPLES))
+        name = generator["name"]
+        subset = analogues[analogues["generator"] == name]
+        with st.container(border=True, key="card-grid-" + name):
+            st.markdown("**{0}** - {1} analogues. {2} of them, at random:".format(
+                name, len(subset), N_GENERATOR_EXAMPLES))
+            sample = _sample_analogues(subset, name)
             draw_molecules_grid(
-                list(top["canonical_smiles"]),
-                ["{0:.2f}".format(v) for v in top[ANALOGUE_X]],
-                per_row=5, size=(190, 165),
+                list(sample["canonical_smiles"]), [""] * len(sample),
+                per_row=5, size=(190, 150),
             )
-            st.download_button(
-                "Download all {0} analogues as SMILES".format(generator["name"]),
-                "\n".join(subset["canonical_smiles"]).encode(),
-                file_name="{0}_analogues.smi".format(generator["name"].lower()),
-                icon=":material/download:", key="dl_" + generator["name"],
-            )
+            with st.container(horizontal=True):
+                if st.button("Sample more", key="shuffle_button_" + name,
+                             icon=":material/casino:"):
+                    # The grid is drawn above the button, so a new sample only
+                    # reaches the screen on the next run of the script.
+                    st.session_state["shuffle_" + name] += 1
+                    st.rerun()
+                st.download_button(
+                    "Download all {0} analogues".format(name),
+                    "\n".join(subset["canonical_smiles"]).encode(),
+                    file_name="{0}_analogues.smi".format(name.lower()),
+                    icon=":material/download:", key="dl_" + name,
+                )
 
     # 3. Efflux ----------------------------------------------------------------
     st.divider()
-    st.subheader("Getting inside a Gram-negative cell")
-    st.markdown(EFFLUX_BLURB.format(PARENT_EFFLUX))
-    st.caption(
-        "{0} analogues. Up and to the right of the parent is better on both axes.".format(
-            len(analogues))
-    )
-    st.altair_chart(
-        plot_pareto(analogues, ANALOGUE_X, ANALOGUE_Y, ANALOGUE_SHORTLIST,
-                    PARENT_SAUREUS, PARENT_EFFLUX, SAUREUS_THRESHOLD),
-        width="stretch",
-    )
-    with st.container(border=True, key="card-shortlist"):
-        cols = st.columns(4)
-        cols[0].metric("Analogues", len(analogues))
-        cols[1].metric("Keep potency", int(analogues["clears_saureus_thr"].sum()))
-        cols[2].metric("Gain permeability", int(analogues["better_efflux_than_parent"].sum()))
-        cols[3].metric("Both", int(analogues[ANALOGUE_SHORTLIST].sum()))
+    st.subheader("Efflux evasion in Gram-negative bacteria")
+    st.markdown(EFFLUX_BLURB)
+
+    if not st.session_state.get("efflux_run"):
+        if st.button("Run the model on the analogues", type="primary",
+                     icon=":material/play_arrow:", key="button_efflux"):
+            _progress("{0} · efflux evasion".format(EFFLUX_MODEL))
+            st.session_state["efflux_run"] = True
+            st.rerun()
+    else:
+        # Where to draw the line is the discussion, so the lines move. The
+        # defaults are the two reference values: the S. aureus model's own
+        # threshold, and platensimycin's efflux score.
+        limits = st.columns(2)
+        x_cut = limits[0].slider(
+            "Predicted S. aureus activity of at least",
+            _floor(analogues[ANALOGUE_X].min()), _ceil(analogues[ANALOGUE_X].max()),
+            SAUREUS_THRESHOLD, 0.01, key="cut_saureus")
+        y_cut = limits[1].slider(
+            "Predicted efflux evasion of at least",
+            _floor(analogues[ANALOGUE_Y].min()), _ceil(analogues[ANALOGUE_Y].max()),
+            PARENT_EFFLUX, 0.01, key="cut_efflux")
+        picked = analogues.assign(
+            selected=(analogues[ANALOGUE_X] >= x_cut) & (analogues[ANALOGUE_Y] >= y_cut))
+        st.caption(
+            "{0} analogues. The diamond is {1}, at {2:.2f} and {3:.2f}.".format(
+                len(picked), PARENT_NAME.lower(), PARENT_SAUREUS, PARENT_EFFLUX))
+        st.altair_chart(
+            plot_pareto(picked, ANALOGUE_X, ANALOGUE_Y, "selected",
+                        PARENT_SAUREUS, PARENT_EFFLUX, x_cut, y_cut),
+            width="stretch",
+        )
+        with st.container(border=True, key="card-shortlist"):
+            stats = st.columns(2)
+            stats[0].metric("Analogues", len(picked))
+            stats[1].metric("Selected", int(picked["selected"].sum()))
 
     # 4. Gram-negative activity ------------------------------------------------
     st.divider()

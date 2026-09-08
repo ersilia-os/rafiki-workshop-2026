@@ -53,7 +53,7 @@ STEP_TEXT = {
         "What did the room choose?",
         "Let's discuss collections from colleagues.",
     ),
-    "hit_expansion": ("Can you beat the natural product?", ""),
+    "hit_expansion": ("Let's improve the natural product", ""),
 }
 
 # data/saureus.csv is a downsample. scripts/01_prepare_saureus_dataset.py kept
@@ -258,6 +258,17 @@ N_TOP_HITS = 24        # shown as structures once the screen has run
 ANALOGUES_FILE = "analogues_master.csv"
 PARENT_NAME = "Platensimycin"
 
+# A hand-drawn skeletal formula, offered beside the computed depiction because
+# the automatic layout of a caged terpenoid is hard to read on a projector.
+# Charlesy, Wikimedia Commons, released CC0 - no attribution required, credited
+# below the drawing anyway.
+PARENT_DRAWING_FILE = "platensimycin.svg"
+PARENT_DRAWING_CREDIT = (
+    "Skeletal formula by Charlesy, "
+    "[Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Platensimycin_skeletal.svg), "
+    "CC0."
+)
+
 # The real, stereo-defined natural product: the input the generators were given.
 # The copy inside the libraries is flat, which is why it scores 0.825 not 0.830.
 PARENT_SMILES = (
@@ -270,27 +281,28 @@ PARENT_SMILES = (
 # decorator does. GenMol and mol2mol are in the file but out of the workshop.
 ANALOGUE_GENERATORS = ["CReM", "LibInvent"]
 
+# Each was run on the input its method expects: CReM on the whole molecule,
+# LibInvent on the parent with one attachment point opened on the benzoic-acid
+# ring - "...Nc5c(O)c([*])cc(C(=O)O)c5O..." - which is why the two sets of
+# analogues look so different.
 GENERATORS = [
     {
         "name": "CReM",
         "model": "eos4q1a",
-        "input_label": "Input: the whole molecule",
-        "input_smiles": PARENT_SMILES,
-        "text": "Swaps small fragments for alternatives seen in real molecules, leaving "
-                "the rest untouched. The only generator here that keeps all six "
-                "stereocentres and stays near the parent's weight.",
+        "text": "Chemically Reasonable Mutations. It swaps a fragment of the molecule "
+                "for another fragment seen in the same context in real compounds, and "
+                "leaves the rest alone. Every analogue is therefore something a chemist "
+                "has made before, somewhere; it keeps all six stereocentres and stays "
+                "near the parent's weight.",
     },
     {
         "name": "LibInvent",
         "model": "eos6ost",
-        "input_label": "Input: a scaffold with one attachment point",
-        "input_smiles": (
-            "C[C@]12C[C@@]34C=CC(=O)[C@@](C)(CCC(=O)Nc5c(O)c([*])cc(C(=O)O)c5O)"
-            "[C@@H]3[C@H](C[C@@H]1C4)O2"
-        ),
-        "text": "Grows substituents at the position marked [*] and freezes everything "
-                "else. Run on the bare molecule instead, it strips the benzoic-acid head "
-                "- and the activity goes with it.",
+        "text": "A scaffold decorator. Given a scaffold with an attachment point, a "
+                "recurrent network writes substituents to hang off it and freezes "
+                "everything else, so the core survives by construction. Hand it the "
+                "bare molecule instead and it strips the benzoic-acid head - and the "
+                "activity goes with it.",
     },
 ]
 
@@ -299,18 +311,21 @@ PARENT_SAUREUS, PARENT_EFFLUX = 0.830, 0.492
 SAUREUS_THRESHOLD = 0.791
 
 PARENT_BLURB = (
-    "Platensimycin is a known FabF inhibitor of natural origin, active against "
-    "Gram-positives but effluxed in Gram-negatives. It was identified by Merck "
-    "([Wang et al., *Nature*, 2006](https://www.nature.com/articles/nature04784))."
+    "Platensimycin is a natural product from the soil bacterium *Streptomyces "
+    "platensis*, reported by a Merck group in 2006 ([Wang et al., *Nature*]"
+    "(https://www.nature.com/articles/nature04784)). They found it by screening "
+    "natural-product extracts against *S. aureus* cells that had been sensitised "
+    "to one target in particular, so a hit told them what it was hitting: FabF, "
+    "a fatty-acid synthesis enzyme no marketed antibiotic goes after. It clears "
+    "Gram-positive pathogens, resistant strains included, and is pumped straight "
+    "back out of Gram-negative ones."
 )
 
+EFFLUX_MODEL = "eos3lyd"
 EFFLUX_BLURB = (
-    "A Gram-negative cell pumps most small molecules straight back out. "
-    "`eos3lyd` was trained on Co-ADD data for 73,000 compounds screened against "
-    "wild-type *E. coli* alongside efflux-deficient and hyperpermeable strains: "
-    "comparing the strains says whether a compound was kept out or pumped out. "
-    "The model returns the probability that a molecule **evades** efflux, so higher "
-    "is better. Platensimycin scores {0}."
+    "A Gram-negative cell pumps most small molecules straight back out. A model "
+    "trained on efflux-deficient versus wild-type *E. coli* cells lets us infer "
+    "efflux evasion."
 )
 
 # Gram-negative activity, with each model's own recommended threshold.
@@ -321,8 +336,9 @@ GRAM_NEGATIVE = [
 
 N_GENERATOR_EXAMPLES = 10
 
+# The two axes of the selection plot. The file also carries a precomputed
+# shortlist column, unused now that the reader sets both cut-offs.
 ANALOGUE_X, ANALOGUE_Y = "ch_saureus", "efflux_evader_proba"
-ANALOGUE_SHORTLIST = "on_pareto_shortlist"
 
 # --- Discussion questions ----------------------------------------------------
 q1 = [
