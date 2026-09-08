@@ -26,11 +26,19 @@ import uuid
 
 import streamlit as st
 
-# Served from static/ by [server] enableStaticServing in config.toml, so there
-# is no CDN dependency at runtime. Refresh both files together, from the same
-# @rdkit/rdkit release.
-RDKIT_JS = "/app/static/RDKit_minimal.js"
-RDKIT_WASM = "/app/static/RDKit_minimal.wasm"
+# Served from app/static/ by [server] enableStaticServing, so there is normally
+# no CDN dependency at runtime. The pinned jsdelivr copy of the same release is
+# a fallback only, in case a host does not honour static serving: without it a
+# 404 would mean no structures anywhere in the app. Refresh all of these
+# together, from one @rdkit/rdkit release.
+RDKIT_VERSION = "2025.3.4-1.0.0"
+CDN = "https://cdn.jsdelivr.net/npm/@rdkit/rdkit@%s/dist" % RDKIT_VERSION
+RDKIT_SOURCES = [
+    {"js": "/app/static/RDKit_minimal.js", "wasm": "/app/static/RDKit_minimal.wasm",
+     "local": True},
+    {"js": CDN + "/RDKit_minimal.js", "wasm": CDN + "/RDKit_minimal.wasm",
+     "local": False},
+]
 
 HIGHLIGHT = [0.902, 0.216, 0.271]        # #e63745, the attachment-point marker
 BORDER = "#E6E6EE"
@@ -49,18 +57,23 @@ window.__molFail = window.__molFail || function (el, msg) {
 };
 window.__rdkit = window.__rdkit || new Promise(function (resolve, reject) {
   if (window.RDKit) { resolve(window.RDKit); return; }
-  var s = document.createElement('script');
-  s.src = window.location.origin + %(js)s;
-  s.onload = function () {
-    initRDKitModule({locateFile: function () {
-      return window.location.origin + %(wasm)s;
-    }}).then(function (m) { window.RDKit = m; resolve(m); }, reject);
-  };
-  s.onerror = function () { reject(new Error('could not load RDKit.js')); };
-  document.head.appendChild(s);
+  var sources = %(sources)s;
+  (function attempt(i) {
+    if (i >= sources.length) { reject(new Error('could not load RDKit.js')); return; }
+    var src = sources[i];
+    var base = src.local ? window.location.origin : '';
+    var s = document.createElement('script');
+    s.src = base + src.js;
+    s.onload = function () {
+      initRDKitModule({locateFile: function () { return base + src.wasm; }})
+        .then(function (m) { window.RDKit = m; resolve(m); },
+              function () { attempt(i + 1); });
+    };
+    s.onerror = function () { attempt(i + 1); };
+    document.head.appendChild(s);
+  })(0);
 });
-""" % {"js": json.dumps(RDKIT_JS), "wasm": json.dumps(RDKIT_WASM),
-       "muted": json.dumps(MUTED)}
+""" % {"sources": json.dumps(RDKIT_SOURCES), "muted": json.dumps(MUTED)}
 
 
 def draw_molecule(smiles, size=(200, 200), highlight_dummies=True):
