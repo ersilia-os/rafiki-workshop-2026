@@ -62,8 +62,8 @@ def _responses(url):
 
 
 @st.cache_data(show_spinner=False)
-def _catalogue(filenames, smiles_column, activity_column, version):
-    return load_catalogue(list(filenames), smiles_column, activity_column)
+def _catalogue(filenames, columns, version):
+    return load_catalogue(list(filenames), list(columns))
 
 
 def cached_responses(url):
@@ -76,9 +76,9 @@ def clear_responses():
     _responses.clear()
 
 
-def cached_catalogue(filenames, smiles_column, activity_column):
+def cached_catalogue(filenames, columns):
     version = max(data_version(f) for f in filenames)
-    return _catalogue(tuple(filenames), smiles_column, activity_column, version)
+    return _catalogue(tuple(filenames), tuple(columns), version)
 
 
 @st.cache_data(show_spinner=False)

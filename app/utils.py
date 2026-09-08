@@ -96,13 +96,12 @@ def normalise_rafiki_id(text):
     return "RAFIKI-{0:04d}".format(int(match.group(1))) if match else None
 
 
-def load_catalogue(library_filenames, smiles_column, activity_column):
+def load_catalogue(library_filenames, columns):
     """Every library in one frame, for looking a compound up without knowing
-    which group had it."""
-    frames = [pd.read_csv(data_path(f))[[smiles_column, activity_column]]
-              for f in library_filenames]
+    which group had it. Nominations come from all six."""
+    frames = [pd.read_csv(data_path(f))[list(columns)] for f in library_filenames]
     catalogue = pd.concat(frames, ignore_index=True)
-    return catalogue.drop_duplicates(subset=[smiles_column])
+    return catalogue.drop_duplicates(subset=[columns[0]])
 
 
 def load_pretrained(filename):

@@ -1,5 +1,6 @@
 """One function per step. Each is registered as a page in app.py."""
 
+import math
 import os
 import random
 import time
@@ -19,7 +20,7 @@ from info import (
     COLUMN_LABELS, CUTOFF_DEFAULT, CUTOFF_MAX, CUTOFF_MIN, CUTOFF_STEP, DESCRIPTORS,
     HIGHER_IS_ACTIVE, LIBRARY_FILES, LIBRARY_SMILES_COLUMN, N_TOP_HITS,
     CLOSING, CLOSING_TITLE, FORM_RESPONSES_URL, PICKS_FORM_URL,
-    N_COLLECTIVE_SHOWN, N_SCREEN_PREVIEW, READOUT_TABLE_LABEL,
+    N_COLLECTIVE_PAGE, N_SCREEN_PREVIEW, READOUT_TABLE_LABEL,
     RESPONSE_CANDIDATE_COLUMNS, SCREENING_SECONDS, SMILES_LABEL,
     PARENT_EFFLUX, PARENT_NAME, PARENT_SAUREUS, PARENT_SMILES, PRETRAINED_FILE,
     PROJECTION_FILE,
@@ -225,7 +226,7 @@ def understand_the_data():
         df[[SMILES_COLUMN, READOUT_COLUMN]].rename(
             columns={SMILES_COLUMN: SMILES_LABEL, READOUT_COLUMN: READOUT_TABLE_LABEL}
         ),
-        height=460,
+        height=460, hide_index=True,
     )
     with cols[1]:
         questions(q1, "q1")
@@ -535,10 +536,14 @@ def collective_picks():
     picks = picks[picks != ""]
 
     ids = cached_rafiki_ids(RAFIKI_IDS_FILE).rename(columns={"rafiki_id": RAFIKI_ID_LABEL})
+    # The whole profile, not just activity: nominations can come from any of the
+    # six libraries, so the table here is the Profiling one over a filtered set.
     catalogue = cached_catalogue(
-        LIBRARY_FILES, LIBRARY_SMILES_COLUMN, ACTIVITY_MODEL_COLUMN
+        LIBRARY_FILES,
+        [LIBRARY_SMILES_COLUMN, ACTIVITY_MODEL_COLUMN] + list(COLUMN_LABELS),
     ).rename(columns={LIBRARY_SMILES_COLUMN: "smiles",
-                      ACTIVITY_MODEL_COLUMN: ACTIVITY_MODEL_LABEL})
+                      ACTIVITY_MODEL_COLUMN: ACTIVITY_MODEL_LABEL,
+                      **COLUMN_LABELS})
 
     # Valid means two things: it reads as an identifier, and it is one we issued.
     # RAFIKI-9999 passes the first test and fails the second, so both are checked
@@ -559,14 +564,10 @@ def collective_picks():
     counts = counts.merge(ids, on=RAFIKI_ID_LABEL, how="left")
     counts = counts.merge(catalogue, on="smiles", how="left")
 
-    stats = st.columns(4)
+    stats = st.columns(3)
     stats[0].metric("Responses", len(responses))
-    stats[1].metric("Nominations", int(len(resolved)))
-    stats[2].metric("Distinct compounds", int(counts[RAFIKI_ID_LABEL].nunique()))
-    stats[3].metric(
-        "Picked more than once", int((counts["Nominations"] > 1).sum()),
-        help="Compounds two or more groups arrived at independently.",
-    )
+    stats[1].metric("Distinct compounds", int(counts[RAFIKI_ID_LABEL].nunique()))
+    stats[2].metric("Picked more than once", int((counts["Nominations"] > 1).sum()))
 
     if rejected:
         st.warning(
@@ -576,23 +577,29 @@ def collective_picks():
             icon=":material/help:",
         )
 
-    shown = counts.head(N_COLLECTIVE_SHOWN)
-    st.caption(
-        "Every compound the room nominated, most-picked first."
-        + ("" if len(shown) == len(counts)
-           else " Showing the first {0} of {1}.".format(len(shown), len(counts)))
-    )
-    draw_molecules_grid(
-        list(shown["smiles"]),
-        ["{0} · picked {1}x".format(r[RAFIKI_ID_LABEL], r["Nominations"])
-         for _, r in shown.iterrows()],
-        per_row=5, size=(190, 165),
+    # The Profiling table over the nominated set, with the tally in front of it.
+    st.dataframe(
+        counts[["Nominations", RAFIKI_ID_LABEL, "smiles", ACTIVITY_MODEL_LABEL]
+               + list(COLUMN_LABELS.values())].rename(columns={"smiles": SMILES_LABEL}),
+        height=320, hide_index=True,
     )
 
-    st.dataframe(
-        counts[[RAFIKI_ID_LABEL, "Nominations", ACTIVITY_MODEL_LABEL, "smiles"]]
-            .rename(columns={"smiles": SMILES_LABEL}),
-        height=320, hide_index=True,
+    pages = max(1, math.ceil(len(counts) / N_COLLECTIVE_PAGE))
+    page = 1
+    if pages > 1:
+        # In a narrow column: a full-width slider for two or three pages reads as
+        # a much bigger control than it is.
+        page = st.columns(4)[0].select_slider(
+            "Page", list(range(1, pages + 1)), value=1, key="collective_page")
+    window = counts.iloc[(page - 1) * N_COLLECTIVE_PAGE:page * N_COLLECTIVE_PAGE]
+    st.caption("Most-picked first. Showing {0}-{1} of {2}.".format(
+        (page - 1) * N_COLLECTIVE_PAGE + 1,
+        (page - 1) * N_COLLECTIVE_PAGE + len(window), len(counts)))
+    draw_molecules_grid(
+        list(window["smiles"]),
+        ["{0} · picked {1}x".format(r[RAFIKI_ID_LABEL], r["Nominations"])
+         for _, r in window.iterrows()],
+        per_row=8, size=(170, 150),
     )
 
     with st.expander("Who submitted what", icon=":material/list:"):

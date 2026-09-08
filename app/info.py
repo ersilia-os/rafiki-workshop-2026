@@ -51,8 +51,7 @@ STEP_TEXT = {
     "the_full_picture": ("The Ersilia Model Hub as a quick profiling tool", ""),
     "collective_picks": (
         "What did the room choose?",
-        "Every group nominated five compounds. This is all of them together - which is a "
-        "small, real version of how a project actually decides what to make.",
+        "Let's discuss collections from colleagues.",
     ),
     "hit_expansion": ("Can you beat the natural product?", ""),
 }
@@ -84,8 +83,8 @@ FORM_RESPONSES_URL = os.environ.get(
     "?gid=478356490&single=true&output=tsv",
 )
 RESPONSE_NAME_COLUMN = "Your name"
-# Cap on the structure grid, so a busy sheet cannot render hundreds of molecules.
-N_COLLECTIVE_SHOWN = 40
+# Structures per page on the Collective step.
+N_COLLECTIVE_PAGE = 24
 RESPONSE_CANDIDATE_COLUMNS = ["Candidate {0}".format(i) for i in range(1, 6)]
 
 # Where the room submits its five candidates. The sheet above is what this
@@ -363,9 +362,7 @@ q5 = [
 ]
 
 q7 = [
-    "- Did the room converge on the same compounds, or spread out?",
-    "- If two groups picked the same compound, did they have the same reason?",
-    "- Nobody can make all of these. Which five would you defend to a chemist?",
+    "- There is a known natural product antibiotic in the libraries. Did we find it?",
 ]
 
 q6 = [
