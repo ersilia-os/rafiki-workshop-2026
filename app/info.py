@@ -318,7 +318,8 @@ PARENT_SAUREUS, PARENT_EFFLUX = 0.830, 0.492
 PARENT_BLURB = (
     "Platensimycin is a natural product from the soil bacterium *Streptomyces "
     "platensis*, reported by a Merck group in 2006 ([Wang et al., *Nature*]"
-    "(https://www.nature.com/articles/nature04784)). They found it by screening "
+    "(https://drive.google.com/file/d/1LXHkFvR3N66q8Gl_R0L89XLn5eZx9WLU/view"
+    "?usp=sharing)). They found it by screening "
     "natural-product extracts against *S. aureus* cells that had been sensitised "
     "to one target in particular, so a hit told them what it was hitting: FabF, "
     "a fatty-acid synthesis enzyme no marketed antibiotic goes after. It clears "
